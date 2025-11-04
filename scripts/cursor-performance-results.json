@@ -1,0 +1,129 @@
+{
+  "timestamp": "2025-09-30T05:15:11.317Z",
+  "totalDuration": 5639.2542,
+  "results": {
+    "auth": {
+      "success": true,
+      "duration": 426.71459999999996,
+      "userId": "f1dff501-b12d-4d79-b77b-3f6827a1148a"
+    },
+    "pages": [
+      {
+        "name": "Home",
+        "url": "/",
+        "duration": 359.14830000000006,
+        "status": 200,
+        "size": 68517,
+        "isSlow": false,
+        "performance": "FAST"
+      },
+      {
+        "name": "Feed",
+        "url": "/feed",
+        "duration": 164.76499999999987,
+        "status": 200,
+        "size": 8495,
+        "isSlow": false,
+        "performance": "FAST"
+      },
+      {
+        "name": "Teams List",
+        "url": "/teams",
+        "duration": 102.2804000000001,
+        "status": 200,
+        "size": 21312,
+        "isSlow": false,
+        "performance": "FAST"
+      },
+      {
+        "name": "Projects",
+        "url": "/projects",
+        "duration": 99.29140000000007,
+        "status": 200,
+        "size": 8461,
+        "isSlow": false,
+        "performance": "FAST"
+      },
+      {
+        "name": "Events",
+        "url": "/events",
+        "duration": 103.5027,
+        "status": 200,
+        "size": 8511,
+        "isSlow": false,
+        "performance": "FAST"
+      },
+      {
+        "name": "News",
+        "url": "/news",
+        "duration": 55.76290000000017,
+        "status": 404,
+        "size": 9372,
+        "isSlow": false,
+        "performance": "FAST"
+      }
+    ],
+    "apis": [
+      {
+        "name": "User Profile",
+        "url": "/users/me",
+        "duration": 540.5305999999996,
+        "status": 200,
+        "size": 648,
+        "isSlow": false,
+        "performance": "FAST"
+      },
+      {
+        "name": "Teams List",
+        "url": "/teams",
+        "duration": 720.4821999999999,
+        "status": 200,
+        "size": 673260,
+        "isSlow": false,
+        "performance": "FAST"
+      },
+      {
+        "name": "Projects",
+        "url": "/projects",
+        "duration": 664.1718999999998,
+        "status": 200,
+        "size": 3914,
+        "isSlow": false,
+        "performance": "FAST"
+      },
+      {
+        "name": "Events",
+        "url": "/events",
+        "duration": 853.0036,
+        "status": 200,
+        "size": 4174880,
+        "isSlow": false,
+        "performance": "FAST"
+      },
+      {
+        "name": "News",
+        "url": "/news",
+        "duration": 175.91839999999956,
+        "status": 200,
+        "size": 9891,
+        "isSlow": false,
+        "performance": "FAST"
+      }
+    ],
+    "teams": [],
+    "teamPages": [],
+    "summary": {
+      "total": 11,
+      "slow": 0,
+      "fast": 11,
+      "errors": 0
+    },
+    "recommendations": []
+  },
+  "cursorFeatures": {
+    "backgroundAgent": "Available for remote testing",
+    "bugBot": "Can identify performance bottlenecks",
+    "memories": "Can store optimization patterns",
+    "jupyterIntegration": "Available for data analysis"
+  }
+}

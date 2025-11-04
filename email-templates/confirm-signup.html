@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Your Signup - Web3 Recap</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #111111;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        .header {
+            background: #000000;
+            padding: 40px 30px;
+            text-align: center;
+            border-bottom: 2px solid #ffffff;
+        }
+        .logo {
+            width: 200px;
+            height: 100px;
+            margin: 0 auto 30px auto;
+            display: block;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .welcome-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .welcome-section h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0 0 15px 0;
+            letter-spacing: -0.3px;
+        }
+        .welcome-section p {
+            font-size: 16px;
+            color: #ffffff;
+            margin: 0;
+            line-height: 1.7;
+        }
+        .confirm-section {
+            background-color: #000000;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+            border: 2px solid #ffffff;
+        }
+        .confirm-section h3 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #ffffff;
+            margin: 0 0 15px 0;
+        }
+        .confirm-section p {
+            font-size: 14px;
+            color: #ffffff;
+            margin: 0 0 25px 0;
+        }
+        .confirm-button {
+            display: inline-block;
+            background: #ffffff;
+            color: #000000;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+            border: 2px solid #000000;
+        }
+        .confirm-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
+        }
+        .raffle-section {
+            background: #000000;
+            border: 2px solid #ffffff;
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        .raffle-section h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .raffle-section p {
+            font-size: 14px;
+            color: #ffffff;
+            margin: 0;
+            line-height: 1.6;
+        }
+        .features-section {
+            margin: 30px 0;
+        }
+        .features-section h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .feature-item {
+            background-color: #000000;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #ffffff;
+        }
+        .feature-item h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0 0 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .feature-item p {
+            font-size: 12px;
+            color: #ffffff;
+            margin: 0;
+            line-height: 1.5;
+        }
+        .footer {
+            background-color: #000000;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #ffffff;
+        }
+        .footer p {
+            font-size: 14px;
+            color: #ffffff;
+            margin: 0 0 15px 0;
+        }
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .footer-links a {
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        .divider {
+            height: 1px;
+            background-color: #ffffff;
+            margin: 30px 0;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+            }
+            .header, .content, .footer {
+                padding: 30px 20px;
+            }
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            .footer-links {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div style="font-size: 48px; font-weight: bold; color: #ffffff; text-align: center; margin-bottom: 20px;">
+                    Web3 Recap
+                </div>
+            </div>
+            <h1>Platform for Web3 Builders</h1>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <h2>Almost There</h2>
+                <p>You're just one click away from joining the premier Web3 community platform for Web3 builders.</p>
+            </div>
+
+            <!-- Confirm Section -->
+            <div class="confirm-section">
+                <h3>Confirm Your Email Address</h3>
+                <p>Click the button below to verify your email and activate your account:</p>
+                <a href="{{ .ConfirmationURL }}" class="confirm-button">Confirm My Account</a>
+            </div>
+
+
+            <!-- Features Section -->
+            <div class="features-section">
+                <h3>What's Next?</h3>
+                <div class="features-grid">
+                    <div class="feature-item">
+                        <h4>Find Teams</h4>
+                        <p>Connect with talented builders</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4>Create Projects</h4>
+                        <p>Showcase your Web3 innovations</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4>Get Featured</h4>
+                        <p>Earn spots in our catalog</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4>Stay Updated</h4>
+                        <p>Get curated Web3 news</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Additional Info -->
+            <div style="text-align: center; margin: 30px 0;">
+                <p style="font-size: 14px; color: #ffffff; margin: 0;">
+                    <strong>Need help?</strong> If you didn't create an account with us, you can safely ignore this email.
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Welcome to the future of Web3 collaboration!</p>
+            <div class="footer-links">
+                <a href="https://web3recap.io">Visit Website</a>
+                <a href="https://web3recap.io/events">View Events</a>
+                <a href="https://web3recap.io/projects">Browse Projects</a>
+            </div>
+            <p style="font-size: 12px; color: #475569; margin-top: 20px;">
+                © 2024 Web3 Recap. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
