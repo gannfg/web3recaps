@@ -17,9 +17,37 @@ const nextConfig = {
   images: {
     // Simplify for faster dev builds
     unoptimized: process.env.NODE_ENV === 'development',
-    domains: ['placeholder.com', 'supabase.co', 'covhnjmsfmfnlrkvllah.supabase.co', 'images.unsplash.com'],
+    // Use remotePatterns for modern Next.js image optimization
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'fxtjjkrjgbrsjhjfudsm.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'covhnjmsfmfnlrkvllah.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'placeholder.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
+    // Legacy domains support (keeping for backward compatibility)
+    domains: [
+      'placeholder.com', 
+      'supabase.co', 
+      'covhnjmsfmfnlrkvllah.supabase.co',
+      'fxtjjkrjgbrsjhjfudsm.supabase.co',
+      'images.unsplash.com'
+    ],
     dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox; media-src 'self' https://covhnjmsfmfnlrkvllah.supabase.co;",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox; media-src 'self' https://*.supabase.co;",
   },
   
   // Configure headers for better security
