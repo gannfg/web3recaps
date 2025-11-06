@@ -1,6 +1,7 @@
 import { NewsArticle, NewsCategory, Event } from '@/lib/news-types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Select,
   SelectContent,
@@ -8,6 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from '@/components/ui/carousel';
 import { 
   Clock, 
   Eye, 
@@ -16,10 +23,20 @@ import {
   Share2, 
   Zap, 
   Star,
-  Filter
+  Filter,
+  Calendar,
+  Trophy,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  Newspaper
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import headObject from './head_object.png';
+import headText from './head_text.png';
+import { AdminArticleInput } from './admin-article-input';
+import { useState, useEffect } from 'react';
 
 interface NewsNewspaperLayoutProps {
   articles: NewsArticle[];
@@ -38,6 +55,18 @@ export function NewsNewspaperLayout({
   onCategoryChange, 
   activeCategory 
 }: NewsNewspaperLayoutProps) {
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+  
+  useEffect(() => {
+    if (!api) return;
+    
+    setCurrent(api.selectedScrollSnap());
+    api.on('select', () => {
+      setCurrent(api.selectedScrollSnap());
+    });
+  }, [api]);
+
   // Get content by layout position - these should NEVER change based on category filter
   const featuredMain = articles.find(article => article.layout_position === 'featured_main') || 
                       events.find(event => event.layout_position === 'featured_main');
@@ -84,7 +113,62 @@ export function NewsNewspaperLayout({
   const showDebugSquares = false; // Only show debug squares when positions are empty
 
   return (
-    <div className="w-full max-w-6xl mx-auto overflow-hidden">
+    <div className="relative w-full min-h-screen">
+      {/* Background with SVG - disabled until file is available */}
+      {/* <div 
+        className="absolute inset-0 w-full h-full opacity-50"
+        style={{
+          backgroundImage: 'url(/news_bg.svg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'top',
+          backgroundRepeat: 'no-repeat',
+          zIndex: 0
+        }}
+      /> */}
+      
+      {/* Content */}
+      <div className="relative z-10 w-full max-w-6xl mx-auto overflow-hidden px-4 md:px-6">
+      {/* Hero Banner Section - Two Panel Layout */}
+      <div className="mb-12 md:mb-16">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+          {/* Left Panel: Text and Buttons */}
+          <div className="flex-1 flex flex-col">
+            {/* Red Rectangle Area: Large Heading Image */}
+            <div className="mb-8" style={{ marginTop: '120px' }}>
+              <Image
+                src={headText}
+                alt="Summarizing the most important update on WEB3"
+                width={700}
+                height={220}
+                className="w-full h-auto max-w-3x2"
+                priority
+              />
+            </div>
+
+            {/* Green Rectangle Area: Empty space for future content */}
+            <div className="mb-8 min-h-[100px]">
+              {/* This space is reserved for future content */}
+            </div>
+          </div>
+
+          {/* Right Panel: Earth Image */}
+          <div className="flex-1">
+            <div 
+              className="relative h-full min-h-[400px] md:min-h-[500px]"
+            >
+              {/* Earth/Object Image */}
+              <Image
+                src={headObject}
+                alt="Earth night view"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Responsive Hero Section */}
       <div className="mb-2">
         {/* Mobile Hero - Single Column (hide on tablet/desktop) */}
@@ -118,104 +202,211 @@ export function NewsNewspaperLayout({
                 <h3 className="text-sm font-bold text-foreground mb-0.5">Showcase</h3>
                 <p className="text-[10px] text-muted-foreground">Platform features</p>
               </Link>
+              <Link 
+                href="/teams" 
+                className="bg-muted rounded-lg p-2 text-center hover:bg-accent transition-colors"
+              >
+                <h3 className="text-sm font-bold text-foreground mb-0.5">Teams</h3>
+                <p className="text-[10px] text-muted-foreground">Find collaborators</p>
+              </Link>
+              <Link 
+                href="/magazine" 
+                className="bg-muted rounded-lg p-2 text-center hover:bg-accent transition-colors"
+              >
+                <h3 className="text-sm font-bold text-foreground mb-0.5">Magazine</h3>
+                <p className="text-[10px] text-muted-foreground">Read articles</p>
+              </Link>
             </div>
             
             {/* Status Indicators removed for cleaner mobile hero */}
           </div>
         </div>
 
-        {/* Tablet/Desktop Hero - Three Columns */}
-        <div className="hidden md:block">
-          <div className="rounded-xl overflow-hidden bg-background">
-            <div>
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                {/* Left Column - Events */}
-                <div className="md:col-span-3 text-center md:text-left">
-                  <Link 
-                    href="/events" 
-                    className="group p-3 h-full flex flex-col justify-center rounded-xl relative overflow-hidden"
-                    style={{
-                      background: 'linear-gradient(90deg, oklch(0.4 0 0) 0%, oklch(0.4 0 0) 20%, transparent 50%, transparent 100%)',
-                      backgroundSize: '200% 100%',
-                      backgroundPosition: '100% 0',
-                      transition: 'background-position 0.6s ease-out'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundPosition = '0% 0';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundPosition = '100% 0';
-                    }}
-                  >
-                    <h2 className="text-2xl font-black text-white mb-2 group-hover:text-gray-300 transition-colors">
+        {/* Tablet/Desktop - Events, Showcase, Teams, and Magazine Cards */}
+        <div className="hidden md:block -mt-4 mb-12">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex gap-4 relative">
+              {/* Events Card */}
+              <Link 
+                href="/events" 
+                className="flex-1 group block"
+                onMouseEnter={(e) => {
+                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                  if (card) {
+                    card.style.transform = 'translateY(-12px) scale(1.03)'
+                    card.style.zIndex = '10'
+                    card.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                  if (card) {
+                    card.style.transform = 'translateY(0) scale(1)'
+                    card.style.zIndex = '1'
+                    card.style.boxShadow = ''
+                  }
+                }}
+              >
+                <Card 
+                  className="h-full bg-white border border-gray-200 text-gray-900 transition-all duration-300 ease-out cursor-pointer relative shadow-sm"
+                  style={{
+                    transform: 'translateY(0) scale(1)',
+                    zIndex: 1,
+                    willChange: 'transform'
+                  }}
+                >
+                  <CardHeader className="pb-3">
+                    <Calendar className="h-5 w-5 mb-2 text-primary" />
+                    <CardTitle className="text-lg font-bold text-gray-900">
                       Events
-                    </h2>
-                    <p className="text-gray-300 text-sm mb-2">
-                      Discover upcoming events and join our community gatherings
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      Connect with fellow developers, entrepreneurs, and Web3 enthusiasts
-                    </p>
-                  </Link>
-                </div>
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 text-xs leading-tight">
+                      Discover upcoming events and join our community
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
 
-                {/* Center Column - Main Brand */}
-                <div className="md:col-span-6 text-center">
-                  <div className="flex items-center justify-center">
-                    <Image
-                      src="/logo.png"
-                      alt="Web3 Recap"
-                      width={160}
-                      height={80}
-                      className="h-20 w-40 md:h-24 md:w-48 lg:h-28 lg:w-56 xl:h-32 xl:w-64 object-contain"
-                      priority
-                    />
-                  </div>
-                </div>
-
-                {/* Right Column - Showcase */}
-                <div className="md:col-span-3 text-center md:text-right">
-                  <Link 
-                    href="/showcase" 
-                    className="group p-3 h-full flex flex-col justify-center rounded-xl relative overflow-hidden"
-                    style={{
-                      background: 'linear-gradient(270deg, oklch(0.4 0 0) 0%, oklch(0.4 0 0) 20%, transparent 50%, transparent 100%)',
-                      backgroundSize: '200% 100%',
-                      backgroundPosition: '0% 0',
-                      transition: 'background-position 0.6s ease-out'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundPosition = '100% 0';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundPosition = '0% 0';
-                    }}
-                  >
-                    <h2 className="text-2xl font-black text-white mb-2 group-hover:text-gray-300 transition-colors">
+              {/* Showcase Card */}
+              <Link 
+                href="/showcase" 
+                className="flex-1 group block"
+                onMouseEnter={(e) => {
+                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                  if (card) {
+                    card.style.transform = 'translateY(-12px) scale(1.03)'
+                    card.style.zIndex = '10'
+                    card.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                  if (card) {
+                    card.style.transform = 'translateY(0) scale(1)'
+                    card.style.zIndex = '1'
+                    card.style.boxShadow = ''
+                  }
+                }}
+              >
+                <Card 
+                  className="h-full bg-white border border-gray-200 text-gray-900 transition-all duration-300 ease-out cursor-pointer relative shadow-sm"
+                  style={{
+                    transform: 'translateY(0) scale(1)',
+                    zIndex: 1,
+                    willChange: 'transform'
+                  }}
+                >
+                  <CardHeader className="pb-3">
+                    <Trophy className="h-5 w-5 mb-2 text-primary" />
+                    <CardTitle className="text-lg font-bold text-gray-900">
                       Showcase
-                    </h2>
-                    <p className="text-gray-300 text-sm mb-2">
-                      Explore our incredible platform and community achievements
-                    </p>
-                    <p className="text-gray-400 text-xs mb-1">
-                      • Project galleries and portfolios
-                    </p>
-                    <p className="text-gray-400 text-xs mb-1">
-                      • Community success stories
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      • Innovation showcases and demos
-                    </p>
-                  </Link>
-                </div>
-              </div>
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 text-xs leading-tight">
+                      Explore our platform and community achievements
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+
+              {/* Teams Card */}
+              <Link 
+                href="/teams" 
+                className="flex-1 group block"
+                onMouseEnter={(e) => {
+                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                  if (card) {
+                    card.style.transform = 'translateY(-12px) scale(1.03)'
+                    card.style.zIndex = '10'
+                    card.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                  if (card) {
+                    card.style.transform = 'translateY(0) scale(1)'
+                    card.style.zIndex = '1'
+                    card.style.boxShadow = ''
+                  }
+                }}
+              >
+                <Card 
+                  className="h-full bg-white border border-gray-200 text-gray-900 transition-all duration-300 ease-out cursor-pointer relative shadow-sm"
+                  style={{
+                    transform: 'translateY(0) scale(1)',
+                    zIndex: 1,
+                    willChange: 'transform'
+                  }}
+                >
+                  <CardHeader className="pb-3">
+                    <Users className="h-5 w-5 mb-2 text-primary" />
+                    <CardTitle className="text-lg font-bold text-gray-900">
+                      Teams
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 text-xs leading-tight">
+                      Find collaborators and build amazing projects together
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+
+              {/* Magazine Card */}
+              <Link 
+                href="/magazine" 
+                className="flex-1 group block"
+                onMouseEnter={(e) => {
+                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                  if (card) {
+                    card.style.transform = 'translateY(-12px) scale(1.03)'
+                    card.style.zIndex = '10'
+                    card.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                  if (card) {
+                    card.style.transform = 'translateY(0) scale(1)'
+                    card.style.zIndex = '1'
+                    card.style.boxShadow = ''
+                  }
+                }}
+              >
+                <Card 
+                  className="h-full bg-white border border-gray-200 text-gray-900 transition-all duration-300 ease-out cursor-pointer relative shadow-sm"
+                  style={{
+                    transform: 'translateY(0) scale(1)',
+                    zIndex: 1,
+                    willChange: 'transform'
+                  }}
+                >
+                  <CardHeader className="pb-3">
+                    <Newspaper className="h-5 w-5 mb-2 text-primary" />
+                    <CardTitle className="text-lg font-bold text-gray-900">
+                      Magazine
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 text-xs leading-tight">
+                      Read articles and stay updated with the latest news
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Admin Article Input (Dev Only) */}
+      <AdminArticleInput 
+        categories={categories}
+        onArticleCreated={() => {
+          // Refresh the page to show new article
+          if (typeof window !== 'undefined') {
+            window.location.reload()
+          }
+        }}
+      />
+
       {/* Featured Section */}
-      <div className="py-0">
+      <div className="pt-8 pb-12 md:pt-12 md:pb-16">
         {/* Mobile Featured Layout - Two horizontally scrollable rows, 3 cards each */}
         <div className="md:hidden mb-4">
           {(() => {
@@ -234,7 +425,27 @@ export function NewsNewspaperLayout({
                 {rows.map((row, rIdx) => (
                   <div key={rIdx} className="flex gap-4 overflow-x-auto no-scrollbar px-1 -mx-1 snap-x py-1">
                     {row.map((content: any, idx: number) => (
-                      <article key={(content!.id || content!.slug || idx)} className="min-w-[260px] snap-start bg-card rounded-lg border overflow-hidden">
+                      <article 
+                        key={(content!.id || content!.slug || idx)} 
+                        className="min-w-[260px] snap-start bg-card rounded-lg border overflow-hidden transition-all duration-300 ease-out cursor-pointer"
+                        style={{
+                          transform: 'translateY(0) scale(1)',
+                          zIndex: 1,
+                          willChange: 'transform'
+                        }}
+                        onMouseEnter={(e) => {
+                          const cardEl = e.currentTarget;
+                          cardEl.style.transform = 'translateY(-8px) scale(1.02)';
+                          cardEl.style.zIndex = '10';
+                          cardEl.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+                        }}
+                        onMouseLeave={(e) => {
+                          const cardEl = e.currentTarget;
+                          cardEl.style.transform = 'translateY(0) scale(1)';
+                          cardEl.style.zIndex = '1';
+                          cardEl.style.boxShadow = 'none';
+                        }}
+                      >
                         <div className="relative h-40">
                           {content.__placeholder ? (
                             <div className={`w-full h-full ${content.color} flex items-center justify-center`}>
@@ -248,6 +459,7 @@ export function NewsNewspaperLayout({
                                     src={isArticle(content!) ? content!.featured_image_url! : content!.banner_image!}
                                     alt={content!.title}
                                     fill
+                                    priority={rIdx === 0 && idx === 0}
                                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                                   />
                                 ) : (
@@ -299,338 +511,172 @@ export function NewsNewspaperLayout({
           })()}
         </div>
 
-        {/* Tablet/Desktop Featured Layout - Three Columns */}
+        {/* Tablet/Desktop Featured Layout - Card Carousel */}
         <div className="hidden md:block">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
-            {/* Left Text Block */}
-          <div className="lg:col-span-3">
-            {showDebugSquares ? (
+          {/* Collect all featured content for carousel */}
+          {(() => {
+            const featuredContent = [
+              featuredLeft,
+              featuredMain,
+              featuredRight,
+              getSecondaryContent(1),
+              getSecondaryContent(2),
+              getSecondaryContent(3),
+            ].filter(Boolean);
+
+            if (featuredContent.length === 0) {
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="h-80 bg-blue-500 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">TEXT BLOCK</span>
               </div>
-            ) : featuredLeft ? (
-              <article className="h-full flex flex-col">
-                <div className="bg-card rounded-lg border overflow-hidden h-full flex flex-col">
-                  {/* Image at Top */}
-                  <div className="relative h-32">
-                    <Link href={isArticle(featuredLeft) ? `/news/${featuredLeft.slug}` : `/events/${featuredLeft.id}`}>
-                      <div className="relative h-full group">
-                        {(isArticle(featuredLeft) ? featuredLeft.featured_image_url : featuredLeft.banner_image) ? (
-                          <Image
-                            src={isArticle(featuredLeft) ? featuredLeft.featured_image_url! : featuredLeft.banner_image!}
-                            alt={featuredLeft.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <span className="text-white text-2xl font-bold">
-                              {featuredLeft.title.charAt(0)}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {/* Content Type Badge */}
-                        <div className="absolute top-2 left-2">
-                          <Badge variant={isArticle(featuredLeft) ? "default" : "secondary"} className="text-xs">
-                            {isArticle(featuredLeft) ? "Article" : "Event"}
-                          </Badge>
-                        </div>
-                        
-                        {/* Date and Category Overlay */}
-                        <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm rounded px-2 py-1">
-                          <div className="flex items-center gap-2 text-white text-xs">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {isArticle(featuredLeft) 
-                                ? new Date(featuredLeft.published_at || featuredLeft.created_at).toLocaleDateString()
-                                : new Date(featuredLeft.event_date).toLocaleDateString()
-                              }
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {isArticle(featuredLeft) 
-                                ? featuredLeft.category?.name 
-                                : featuredLeft.event_type
-                              }
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
+                  <div className="h-80 bg-red-500 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">MAIN IMAGE</span>
                   </div>
-                  
-                  {/* Header and Text Below */}
-                  <div className="p-4 flex-1 flex flex-col">
-                    <Link href={isArticle(featuredLeft) ? `/news/${featuredLeft.slug}` : `/events/${featuredLeft.id}`}>
-                      <h2 className="text-lg font-bold text-foreground mb-3 hover:text-blue-600 transition-colors line-clamp-3">
-                        {featuredLeft.title}
-                      </h2>
-                    </Link>
-                    <p className="text-muted-foreground line-clamp-4 leading-relaxed text-sm flex-1">
-                      {isArticle(featuredLeft) ? featuredLeft.excerpt : featuredLeft.description}
-                    </p>
+                  <div className="h-80 bg-red-500 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">RIGHT IMAGE</span>
                   </div>
                 </div>
-              </article>
-            ) : (
-              <div className="h-80 bg-blue-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">TEXT BLOCK</span>
-              </div>
-            )}
-          </div>
+              );
+            }
 
-          {/* Central Main Image */}
-          <div className="lg:col-span-6">
-            {showDebugSquares ? (
-              <div className="h-80 bg-red-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">MAIN IMAGE</span>
-              </div>
-            ) : featuredMain ? (
-              <article className="h-full">
-                <div className="bg-card rounded-lg border overflow-hidden h-full flex">
-                  {/* Image on Left - Full Height */}
-                  <div className="w-1/2 relative">
-                    <Link href={isArticle(featuredMain) ? `/news/${featuredMain.slug}` : `/events/${featuredMain.id}`}>
-                      <div className="relative h-full group">
-                        {(isArticle(featuredMain) ? featuredMain.featured_image_url : featuredMain.banner_image) ? (
-                          <Image
-                            src={isArticle(featuredMain) ? featuredMain.featured_image_url! : featuredMain.banner_image!}
-                            alt={featuredMain.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <span className="text-white text-4xl font-bold">
-                              {featuredMain.title.charAt(0)}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {/* Overlay Badges - Top Left */}
-                        <div className="absolute top-2 left-2 flex gap-2">
-                          <Badge variant={isArticle(featuredMain) ? "default" : "secondary"} className="text-xs">
-                            {isArticle(featuredMain) ? "Article" : "Event"}
-                          </Badge>
-                          {isArticle(featuredMain) && featuredMain.is_breaking && (
-                            <Badge variant="destructive" className="bg-red-500 text-xs">
-                              <Zap className="h-3 w-3 mr-1" />
-                              BREAKING
-                            </Badge>
-                          )}
-                          {featuredMain.is_featured && (
-                            <Badge variant="default" className="bg-yellow-500 text-black text-xs">
-                              <Star className="h-3 w-3 mr-1" />
-                              FEATURED
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        {/* Date and Category - Bottom Left Overlay */}
-                        <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm rounded px-2 py-1">
-                          <div className="flex items-center gap-2 text-white text-xs">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {isArticle(featuredMain) 
-                                ? new Date(featuredMain.published_at || featuredMain.created_at).toLocaleDateString()
-                                : new Date(featuredMain.event_date).toLocaleDateString()
-                              }
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {isArticle(featuredMain) 
-                                ? featuredMain.category?.name 
-                                : featuredMain.event_type
-                              }
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  </div>
-                  
-                  {/* Title and Content on Right */}
-                  <div className="w-1/2 p-6 flex flex-col justify-center">
-                    <Link href={isArticle(featuredMain) ? `/news/${featuredMain.slug}` : `/events/${featuredMain.id}`}>
-                      <h2 className="text-3xl font-bold text-foreground hover:text-blue-600 transition-colors line-clamp-4 mb-4">
-                        {featuredMain.title}
-                      </h2>
-                    </Link>
-                    <p className="text-muted-foreground line-clamp-6 leading-relaxed text-lg">
-                      {isArticle(featuredMain) ? featuredMain.excerpt : featuredMain.description}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ) : (
-              <div className="h-80 bg-red-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">MAIN IMAGE</span>
-              </div>
-            )}
-          </div>
-
-          {/* Right Article Block */}
-          <div className="lg:col-span-3">
-            {showDebugSquares ? (
-              <div className="h-80 bg-red-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">RIGHT IMAGE</span>
-              </div>
-            ) : featuredRight ? (
-              <article className="h-full flex flex-col">
-                <div className="bg-card rounded-lg border overflow-hidden h-full flex flex-col">
-                  {/* Image at Top */}
-                  <div className="relative h-32">
-                    <Link href={isArticle(featuredRight) ? `/news/${featuredRight.slug}` : `/events/${featuredRight.id}`}>
-                      <div className="relative h-full group">
-                        {(isArticle(featuredRight) ? featuredRight.featured_image_url : featuredRight.banner_image) ? (
-                          <Image
-                            src={isArticle(featuredRight) ? featuredRight.featured_image_url! : featuredRight.banner_image!}
-                            alt={featuredRight.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
-                            <span className="text-white text-2xl font-bold">
-                              {featuredRight.title.charAt(0)}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {/* Content Type Badge */}
-                        <div className="absolute top-2 left-2">
-                          <Badge variant={isArticle(featuredRight) ? "default" : "secondary"} className="text-xs">
-                            {isArticle(featuredRight) ? "Article" : "Event"}
-                          </Badge>
-                        </div>
-                        
-                        {/* Date and Category Overlay */}
-                        <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm rounded px-2 py-1">
-                          <div className="flex items-center gap-2 text-white text-xs">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {isArticle(featuredRight) 
-                                ? new Date(featuredRight.published_at || featuredRight.created_at).toLocaleDateString()
-                                : new Date(featuredRight.event_date).toLocaleDateString()
-                              }
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {isArticle(featuredRight) 
-                                ? featuredRight.category?.name 
-                                : featuredRight.event_type
-                              }
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  </div>
-                  
-                  {/* Header and Text Below */}
-                  <div className="p-4 flex-1 flex flex-col">
-                    <Link href={isArticle(featuredRight) ? `/news/${featuredRight.slug}` : `/events/${featuredRight.id}`}>
-                      <h3 className="text-lg font-bold text-foreground mb-3 hover:text-blue-600 transition-colors line-clamp-3">
-                        {featuredRight.title}
-                      </h3>
-                    </Link>
-                    <p className="text-muted-foreground line-clamp-4 leading-relaxed text-sm flex-1">
-                      {isArticle(featuredRight) ? featuredRight.excerpt : featuredRight.description}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ) : (
-              <div className="h-80 bg-red-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">RIGHT IMAGE</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Secondary Content Grid - Only 3 positions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-          {Array.from({ length: 3 }).map((_, index) => {
-            const position = index + 1;
-            const content = getSecondaryContent(position);
             return (
-              <div key={index}>
-                {content ? (
-                  <article className="group hover:shadow-lg transition-all duration-300">
-                    <div className="bg-card rounded-lg border overflow-hidden h-full flex flex-col">
-                      {/* Content Image */}
-                      <div className="relative h-40">
-                        {(isArticle(content) ? content.featured_image_url : content.banner_image) ? (
-                          <Image
-                            src={isArticle(content) ? content.featured_image_url! : content.banner_image!}
-                            alt={content.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <span className="text-white text-4xl font-bold">
-                              {content.title.charAt(0)}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {/* Content Type Badge */}
-                        <div className="absolute top-2 left-2">
-                          <Badge variant={isArticle(content) ? "default" : "secondary"} className="text-xs">
-                            {isArticle(content) ? "Article" : "Event"}
-                          </Badge>
+              <Carousel
+                opts={{
+                  align: 'start',
+                  loop: false,
+                }}
+                setApi={setApi}
+                className="w-full"
+              >
+                <CarouselContent className="-ml-2 md:-ml-4 py-4">
+                  {featuredContent.map((content, index) => {
+                    // Check if article is new (published within last 7 days)
+                    const isNew = content && isArticle(content) && content.published_at
+                      ? new Date(content.published_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000
+                      : false;
+                    
+                    return (
+                      <CarouselItem key={content ? (isArticle(content) ? content.id : content.id) || index : index} className="pl-2 md:pl-4 basis-full md:basis-1/2 lg:basis-1/3 xl:basis-1/4">
+                        <div className="px-2 py-4">
+                          <Link href={content && isArticle(content) ? `/news/${content.slug}` : content ? `/events/${content.id}` : '#'}>
+                            <div 
+                              className="relative group cursor-pointer transition-all duration-300 ease-out"
+                              style={{
+                                transform: 'translateY(0) scale(1)',
+                                zIndex: 1,
+                                willChange: 'transform'
+                              }}
+                              onMouseEnter={(e) => {
+                                const cardEl = e.currentTarget;
+                                cardEl.style.transform = 'translateY(-12px) scale(1.03)';
+                                cardEl.style.zIndex = '10';
+                                cardEl.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25)';
+                              }}
+                              onMouseLeave={(e) => {
+                                const cardEl = e.currentTarget;
+                                cardEl.style.transform = 'translateY(0) scale(1)';
+                                cardEl.style.zIndex = '1';
+                                cardEl.style.boxShadow = 'none';
+                              }}
+                            >
+                              {/* Card Container */}
+                              <div className="relative h-[400px] rounded-lg overflow-hidden bg-black">
+                                {/* Article Image */}
+                                {content && (isArticle(content) ? content.featured_image_url : content.banner_image) ? (
+                                  <Image
+                                    src={isArticle(content) ? content.featured_image_url! : content.banner_image!}
+                                    alt={content.title}
+                                    fill
+                                    priority={index === 0}
+                                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gradient-to-br from-gray-900 to-black flex items-center justify-center">
+                                    <span className="text-6xl font-bold text-white/50">
+                                      {content?.title?.charAt ? content.title.charAt(0) : '•'}
+                                    </span>
+                                  </div>
+                                )}
+                          
+                                {/* Dark overlay for text readability */}
+                                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/70" />
+                                
+                                {/* Badges Container - Top Right */}
+                                <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
+                                  {isNew && (
+                                    <div className="bg-red-500 px-2.5 py-1 rounded-md shadow-lg">
+                                      <span className="text-white text-[10px] font-semibold uppercase tracking-wide">NEW</span>
+                                    </div>
+                                  )}
+                                  {content && isArticle(content) && content.is_breaking && (
+                                    <div className="bg-orange-500 px-2.5 py-1 rounded-md shadow-lg">
+                                      <span className="text-white text-[10px] font-semibold uppercase tracking-wide">BREAKING</span>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Content Overlay - Bottom */}
+                                <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
+                                  {/* Category/Type Badge */}
+                                  <div className="mb-3">
+                                    <span className="inline-block bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-white text-xs font-medium">
+                                      {content 
+                                        ? (isArticle(content) 
+                                          ? (content.category?.name || 'Article')
+                                          : content.event_type || 'Event')
+                                        : 'Content'}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Title */}
+                                  <h3 className="text-2xl md:text-3xl font-bold text-white line-clamp-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] leading-tight">
+                                    {content?.title || 'Untitled'}
+                                  </h3>
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
                         </div>
-                        
-                        {/* Breaking Badge */}
-                        {isArticle(content) && content.is_breaking && (
-                          <Badge variant="destructive" className="absolute top-2 right-2 text-xs">
-                            BREAKING
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Content Details */}
-                      <div className="p-4 flex-1 flex flex-col">
-                        <Link href={isArticle(content) ? `/news/${content.slug}` : `/events/${content.id}`}>
-                          <h3 className="font-semibold text-foreground group-hover:text-blue-600 transition-colors line-clamp-2 mb-2">
-                            {content.title}
-                          </h3>
-                        </Link>
-                        
-                        <p className="text-sm text-muted-foreground line-clamp-3 mb-3 flex-1">
-                          {isArticle(content) ? content.excerpt : content.description}
-                        </p>
-
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span>
-                            {isArticle(content) 
-                              ? new Date(content.published_at || content.created_at).toLocaleDateString()
-                              : new Date(content.event_date).toLocaleDateString()
-                            }
-                          </span>
-                          <span>•</span>
-                          <span>
-                            {isArticle(content) 
-                              ? content.category?.name 
-                              : content.event_type
-                            }
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                ) : (
-                  <div className="h-64 bg-red-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">SECONDARY {position}</span>
+                      </CarouselItem>
+                    );
+                  })}
+                </CarouselContent>
+                
+                {/* Pagination Controls */}
+                <div className="flex items-center justify-center gap-4 mt-6">
+                  <button
+                    onClick={() => api?.scrollPrev()}
+                    className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!api?.canScrollPrev()}
+                    aria-label="Previous slide"
+                  >
+                    <ChevronLeft className="h-4 w-4 text-foreground" />
+                  </button>
+                  <div className="flex gap-2">
+                    {Array.from({ length: Math.max(1, Math.ceil(featuredContent.length / 4)) }).map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => api?.scrollTo(index * 4)}
+                        className={`w-2 h-2 rounded-full transition-opacity ${
+                          Math.floor(current / 4) === index ? 'bg-red-500 opacity-100' : 'bg-red-500 opacity-50'
+                        }`}
+                        aria-label={`Go to page ${index + 1}`}
+                      />
+                    ))}
                   </div>
-                )}
-              </div>
+                  <button
+                    onClick={() => api?.scrollNext()}
+                    className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!api?.canScrollNext()}
+                    aria-label="Next slide"
+                  >
+                    <ChevronRight className="h-4 w-4 text-foreground" />
+                  </button>
+                </div>
+              </Carousel>
             );
-          })}
-          </div>
+          })()}
         </div>
 
         {/* Category Dropdown */}
@@ -672,140 +718,117 @@ export function NewsNewspaperLayout({
           </div>
         </div>
 
-        {/* All Articles - Mobile List View / Desktop Grid */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground mb-6">
+        {/* All Articles - Vertical List */}
+        <div className="mb-12 md:mb-16 pt-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-8">
             {activeCategory ? `${categories.find(c => c.id === activeCategory)?.name} Articles` : 'All Articles'}
           </h2>
           
-          {/* Mobile List View (hide on tablet/desktop) */}
-          <div className="md:hidden space-y-4">
-            {filteredArticles.map((article) => (
-              <article key={article.id} className="bg-card rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-300">
-                <div className="flex">
-                  {/* Article Image */}
-                  <div className="relative w-24 h-24 flex-shrink-0">
+          {/* Vertical List View */}
+          <div className="space-y-6">
+            {filteredArticles.map((article, index) => {
+              // Format date like "MAY 24, 2025"
+              const formattedDate = article.published_at || article.created_at
+                ? (() => {
+                    const date = new Date(article.published_at || article.created_at);
+                    const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+                    const day = date.getDate();
+                    const year = date.getFullYear();
+                    return `${month} ${day}, ${year}`;
+                  })()
+                : '';
+              
+              const authorName = article.author_name || article.author?.name || article.external_source || 'WEB3 RECAP';
+              // Use article featured image instead of author avatar
+              const thumbnailUrl = article.featured_image_url;
+              
+              return (
+                <article 
+                  key={article.id} 
+                  className="flex gap-4 items-start transition-all duration-300 ease-out cursor-pointer relative"
+                  style={{
+                    transform: 'translateY(0) scale(1)',
+                    zIndex: 1,
+                    willChange: 'transform'
+                  }}
+                  onMouseEnter={(e) => {
+                    const articleEl = e.currentTarget;
+                    articleEl.style.transform = 'translateY(-8px) scale(1.02)';
+                    articleEl.style.zIndex = '10';
+                    articleEl.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+                  }}
+                  onMouseLeave={(e) => {
+                    const articleEl = e.currentTarget;
+                    articleEl.style.transform = 'translateY(0) scale(1)';
+                    articleEl.style.zIndex = '1';
+                    articleEl.style.boxShadow = 'none';
+                  }}
+                >
+                  {/* Thumbnail with Numbered Badge */}
+                  <div className="relative flex-shrink-0">
                     <Link href={`/news/${article.slug}`}>
-                      <div className="relative h-full group">
-                        {article.featured_image_url ? (
+                      <div className="relative w-16 h-16 rounded border border-border overflow-hidden">
+                        {thumbnailUrl ? (
                           <Image
-                            src={article.featured_image_url}
+                            src={thumbnailUrl}
                             alt={article.title}
                             fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="object-cover"
                           />
+                        ) : article.category?.color ? (
+                          <div 
+                            className="w-full h-full flex items-center justify-center"
+                            style={{ backgroundColor: article.category.color }}
+                          >
+                            <span className="text-white font-bold text-lg">
+                              {article.category.name.charAt(0)}
+                            </span>
+                          </div>
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                            <span className="text-lg font-bold text-foreground">
+                            <span className="text-foreground font-bold text-lg">
                               {article.title.charAt(0)}
                             </span>
                           </div>
                         )}
-                        
-                        {/* Breaking Badge */}
-                        {article.is_breaking && (
-                          <Badge variant="destructive" className="absolute top-1 left-1 text-xs px-1 py-0">
-                            BREAKING
-                          </Badge>
-                        )}
-                        
-                        {/* Featured Badge */}
-                        {article.is_featured && (
-                          <Badge variant="default" className="absolute top-1 right-1 text-xs px-1 py-0">
-                            FEATURED
-                          </Badge>
-                        )}
                       </div>
                     </Link>
+                    {/* Numbered Badge */}
+                    <div className="absolute -top-1 -right-1 bg-background border border-border rounded-full w-5 h-5 flex items-center justify-center">
+                      <span className="text-xs font-bold text-foreground">{index + 1}</span>
+                    </div>
                   </div>
 
                   {/* Article Content */}
-                  <div className="p-3 flex-1 min-w-0">
+                  <div className="flex-1 min-w-0">
+                    {/* Metadata Line */}
+                    <div className="text-xs text-muted-foreground mb-1">
+                      <span className="font-medium">{authorName}</span>
+                      {formattedDate && (
+                        <>
+                          <span className="mx-1">-</span>
+                          <span>{formattedDate}</span>
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Article Title */}
                     <Link href={`/news/${article.slug}`}>
-                      <h3 className="font-semibold text-foreground hover:text-primary transition-colors line-clamp-2 mb-2 text-sm">
+                      <h3 className="text-xl md:text-2xl font-bold mb-0 leading-tight text-foreground hover:text-blue-600 transition-colors">
                         {article.title}
                       </h3>
                     </Link>
-                    
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                      {article.excerpt}
-                    </p>
-
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>{new Date(article.published_at || article.created_at).toLocaleDateString()}</span>
-                      <span>•</span>
-                      <span>{article.category?.name}</span>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          {/* Tablet/Desktop Grid View */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredArticles.map((article) => (
-                <article key={article.id} className="group hover:shadow-lg transition-all duration-300">
-                  <div className="bg-card rounded-lg border overflow-hidden h-full flex flex-col">
-                    {/* Article Image */}
-                    <div className="relative h-48">
-                      {article.featured_image_url ? (
-                        <Image
-                          src={article.featured_image_url}
-                          alt={article.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                          <span className="text-4xl font-bold text-foreground">
-                            {article.title.charAt(0)}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Breaking Badge */}
-                      {article.is_breaking && (
-                        <Badge variant="destructive" className="absolute top-2 left-2 text-xs">
-                          BREAKING
-                        </Badge>
-                      )}
-                      
-                      {/* Featured Badge */}
-                      {article.is_featured && (
-                        <Badge variant="default" className="absolute top-2 right-2 text-xs">
-                          FEATURED
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Article Content */}
-                    <div className="p-4 flex-1 flex flex-col">
-                      <Link href={`/news/${article.slug}`}>
-                        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-2">
-                          {article.title}
-                        </h3>
-                      </Link>
-                      
-                      <p className="text-sm text-muted-foreground line-clamp-3 mb-3 flex-1">
-                        {article.excerpt}
-                      </p>
-
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span>{new Date(article.published_at || article.created_at).toLocaleDateString()}</span>
-                        <span>•</span>
-                        <span>{article.category?.name}</span>
-                      </div>
-                    </div>
                   </div>
                 </article>
-              ))}
+              );
+            })}
           </div>
         </div>
 
       </div>
+      </div>
     </div>
   );
 }
+
+

@@ -231,7 +231,7 @@ export function UserManagementTable() {
                   {user.last_seen ? formatRelativeTime(user.last_seen) : "Never"}
                 </TableCell>
                 <TableCell>
-                  <DropdownMenu>
+                  <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <MoreHorizontal className="h-4 w-4" />

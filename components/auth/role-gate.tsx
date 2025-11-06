@@ -40,15 +40,28 @@ export function RoleGate({ children, requiredRole, fallback }: RoleGateProps) {
     )
   }
 
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[RoleGate] User role:', user.role, 'Required role:', requiredRole)
+  }
+
   const userRoleLevel = ROLE_HIERARCHY[user.role as UserRole] ?? 0
-  const requiredRoleLevel = ROLE_HIERARCHY[requiredRole]
+  const requiredRoleLevel = ROLE_HIERARCHY[requiredRole] ?? 0
+
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[RoleGate] User role level:', userRoleLevel, 'Required level:', requiredRoleLevel)
+  }
 
   if (userRoleLevel < requiredRoleLevel) {
     return (
       fallback || (
         <Alert>
           <ShieldX className="h-4 w-4" />
-          <AlertDescription>You need {requiredRole} role or higher to access this content.</AlertDescription>
+          <AlertDescription>
+            You need {requiredRole} role or higher to access this content. 
+            {process.env.NODE_ENV === 'development' && ` (Your role: ${user.role || 'none'})`}
+          </AlertDescription>
         </Alert>
       )
     )

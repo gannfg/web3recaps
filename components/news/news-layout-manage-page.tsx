@@ -69,6 +69,27 @@ export function NewsLayoutManagePage() {
     }
   };
 
+  const handleUpdateArticleFeatured = async (articleId: string, isFeatured: boolean) => {
+    try {
+      const result = await execute(`/api/news/${articleId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ is_featured: isFeatured }),
+      });
+      
+      if (result.success) {
+        // Update the article in the local state
+        setArticles(prev => prev.map(article => 
+          article.id === articleId 
+            ? { ...article, is_featured: isFeatured }
+            : article
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating article featured status:', error);
+      throw error;
+    }
+  };
+
   const handleUpdateEventLayout = async (eventId: string, layoutPosition: string) => {
     try {
       const result = await execute(`/api/events/${eventId}/layout`, {
@@ -97,13 +118,46 @@ export function NewsLayoutManagePage() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+    
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([loadArticles(), loadEvents(), loadCategories()]);
-      setLoading(false);
+      try {
+        // Load all data in parallel with error handling
+        const [articlesResult, eventsResult, categoriesResult] = await Promise.allSettled([
+          loadArticles(),
+          loadEvents(),
+          loadCategories()
+        ]);
+        
+        if (!cancelled) {
+          // Handle any errors gracefully
+          if (articlesResult.status === 'rejected') {
+            console.error('Failed to load articles:', articlesResult.reason);
+          }
+          if (eventsResult.status === 'rejected') {
+            console.error('Failed to load events:', eventsResult.reason);
+          }
+          if (categoriesResult.status === 'rejected') {
+            console.error('Failed to load categories:', categoriesResult.reason);
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error loading data:', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     };
     
     loadData();
+    
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -178,6 +232,7 @@ export function NewsLayoutManagePage() {
         events={events}
         onUpdateArticleLayout={handleUpdateArticleLayout}
         onUpdateEventLayout={handleUpdateEventLayout}
+        onUpdateArticleFeatured={handleUpdateArticleFeatured}
         loading={loading}
       />
     </div>

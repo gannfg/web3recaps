@@ -39,8 +39,8 @@ export const metadata: Metadata = {
     images: ["/logo.png"],
   },
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0b0b" },
+    { media: "(prefers-color-scheme: light)", color: "#eae9e9" },
+    { media: "(prefers-color-scheme: dark)", color: "#eae9e9" },
   ],
   generator: "v0.app",
 }
@@ -51,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark overflow-x-hidden">
+    <html lang="en" className="light overflow-x-hidden">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} overflow-x-hidden`}>
         <WalletContextProvider>
           <SessionProvider>
@@ -64,8 +64,8 @@ export default function RootLayout({
               <MagazineBarWrapper />
             </Suspense> */}
 
-            <main className="min-h-screen bg-background pb-16 md:pb-0">
-              <div className="container mx-auto px-4 py-2 max-w-full overflow-x-hidden">
+            <main className="min-h-screen bg-background pb-16 md:pb-0 relative">
+              <div className="container mx-auto px-4 py-2 max-w-full overflow-x-hidden static">
                 {children}
               </div>
             </main>
@@ -74,9 +74,36 @@ export default function RootLayout({
               <MobileBottomNav />
             </Suspense>
 
-            <Analytics />
+            {process.env.NODE_ENV === 'production' && <Analytics />}
           </SessionProvider>
         </WalletContextProvider>
+        {process.env.NODE_ENV === 'development' && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                // Suppress development console messages
+                (function() {
+                  const suppressMessages = [
+                    'Download the React DevTools',
+                    '[Vercel Web Analytics]',
+                    'react-dom.development.js'
+                  ];
+                  
+                  ['log', 'warn', 'info', 'debug'].forEach(method => {
+                    const original = console[method];
+                    console[method] = function(...args) {
+                      const message = args.join(' ');
+                      if (suppressMessages.some(msg => message.includes(msg))) {
+                        return;
+                      }
+                      original.apply(console, args);
+                    };
+                  });
+                })();
+              `,
+            }}
+          />
+        )}
       </body>
     </html>
   )

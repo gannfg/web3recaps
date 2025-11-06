@@ -119,7 +119,7 @@ export function NewsArticleHeader({
                     {article.author.avatar_url ? (
                       <Image
                         src={article.author.avatar_url}
-                        alt={article.author.name}
+                        alt={article.author.name || article.author_name || 'Author'}
                         width={32}
                         height={32}
                         className="rounded-full"
@@ -127,13 +127,17 @@ export function NewsArticleHeader({
                     ) : (
                       <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
                         <span className="text-sm font-medium">
-                          {article.author.name.charAt(0)}
+                          {(article.author.name || article.author_name || 'A').charAt(0).toUpperCase()}
                         </span>
                       </div>
                     )}
                     <div>
-                      <p className="font-medium text-foreground">{article.author.name}</p>
-                      <p className="text-xs">{article.author.role}</p>
+                      <p className="font-medium text-foreground">
+                        {article.author.name || article.author_name || 'Anonymous'}
+                      </p>
+                      {article.author.role && (
+                        <p className="text-xs">{article.author.role}</p>
+                      )}
                     </div>
                   </div>
                 )}

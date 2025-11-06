@@ -47,7 +47,7 @@ export function UserMenu() {
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
@@ -84,7 +84,7 @@ export function UserMenu() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        {user.role === 'Admin' && (
+        {(user.role === 'Admin' || user.role === 'ADMIN') && (
           <DropdownMenuItem asChild>
             <Link href="/admin" className="flex items-center">
               <Shield className="mr-2 h-4 w-4" />

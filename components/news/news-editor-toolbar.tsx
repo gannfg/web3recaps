@@ -441,7 +441,7 @@ export function ToolbarPlugin() {
 
       {/* Block Types */}
       <div className="flex items-center gap-1">
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm">
               <Type className="h-4 w-4 mr-1" />

@@ -19,6 +19,8 @@ import {
   Save,
   RotateCcw
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
@@ -28,6 +30,7 @@ interface NewsLayoutBuilderProps {
   events: Event[];
   onUpdateArticleLayout: (articleId: string, layoutPosition: string) => Promise<void>;
   onUpdateEventLayout: (eventId: string, layoutPosition: string) => Promise<void>;
+  onUpdateArticleFeatured?: (articleId: string, isFeatured: boolean) => Promise<void>;
   loading?: boolean;
 }
 
@@ -46,14 +49,16 @@ export function NewsLayoutBuilder({
   events,
   onUpdateArticleLayout,
   onUpdateEventLayout,
+  onUpdateArticleFeatured,
   loading = false 
 }: NewsLayoutBuilderProps) {
   const [updating, setUpdating] = useState<string | null>(null);
+  const [updatingFeatured, setUpdatingFeatured] = useState<string | null>(null);
 
-  const handleArticleLayoutChange = async (articleSlug: string, layoutPosition: string) => {
-    setUpdating(articleSlug);
+  const handleArticleLayoutChange = async (articleId: string, layoutPosition: string) => {
+    setUpdating(articleId);
     try {
-      await onUpdateArticleLayout(articleSlug, layoutPosition);
+      await onUpdateArticleLayout(articleId, layoutPosition);
     } catch (error) {
       console.error('Error updating article layout:', error);
     } finally {
@@ -69,6 +74,19 @@ export function NewsLayoutBuilder({
       console.error('Error updating event layout:', error);
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const handleArticleFeaturedChange = async (articleId: string, isFeatured: boolean) => {
+    if (!onUpdateArticleFeatured) return;
+    
+    setUpdatingFeatured(articleId);
+    try {
+      await onUpdateArticleFeatured(articleId, isFeatured);
+    } catch (error) {
+      console.error('Error updating article featured status:', error);
+    } finally {
+      setUpdatingFeatured(null);
     }
   };
 
@@ -386,37 +404,59 @@ export function NewsLayoutBuilder({
                   )}
                 </div>
 
-                {/* Layout Position Selector */}
-                <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-foreground">
-                    Layout Position:
-                  </label>
-                  <Select
-                    value={article.layout_position || 'none'}
-                    onValueChange={(value) => handleArticleLayoutChange(article.slug, value === 'none' ? '' : value)}
-                    disabled={updating === article.slug}
-                  >
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Select position..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LAYOUT_POSITIONS.map((position) => (
-                        <SelectItem key={position.value} value={position.value}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{position.label}</span>
-                            <span className="text-xs text-muted-foreground">{position.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  {updating === article.slug && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
-                      Updating...
+                {/* Featured Toggle and Layout Position */}
+                <div className="space-y-3">
+                  {/* Featured Toggle */}
+                  {onUpdateArticleFeatured && (
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor={`featured-${article.id}`} className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <Star className="h-4 w-4" />
+                        Featured:
+                      </Label>
+                      <Switch
+                        id={`featured-${article.id}`}
+                        checked={article.is_featured || false}
+                        onCheckedChange={(checked) => handleArticleFeaturedChange(article.id, checked)}
+                        disabled={updatingFeatured === article.id}
+                      />
+                      {updatingFeatured === article.id && (
+                        <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                      )}
                     </div>
                   )}
+                  
+                  {/* Layout Position Selector */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-foreground">
+                      Layout Position:
+                    </label>
+                    <Select
+                      value={article.layout_position || 'none'}
+                      onValueChange={(value) => handleArticleLayoutChange(article.id, value === 'none' ? '' : value)}
+                      disabled={updating === article.id}
+                    >
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Select position..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LAYOUT_POSITIONS.map((position) => (
+                          <SelectItem key={position.value} value={position.value}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{position.label}</span>
+                              <span className="text-xs text-muted-foreground">{position.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {updating === article.id && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                        Updating...
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

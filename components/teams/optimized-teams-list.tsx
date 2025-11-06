@@ -35,9 +35,10 @@ interface Team {
 interface TeamsListProps {
   initialTeams?: Team[]
   initialStats?: any
+  refreshTrigger?: number
 }
 
-export function OptimizedTeamsList({ initialTeams = [], initialStats }: TeamsListProps) {
+export function OptimizedTeamsList({ initialTeams = [], initialStats, refreshTrigger }: TeamsListProps) {
   const { execute } = useApi()
   const { getCachedImage, preloadImages } = useImageCache()
   const { getCachedData, setCachedData, invalidateCache } = useApiCache()
@@ -73,13 +74,15 @@ export function OptimizedTeamsList({ initialTeams = [], initialStats }: TeamsLis
   const throttledScroll = useMemo(
     () => throttle(() => {
       if (
+        !loading &&
+        pagination?.hasMore &&
         window.innerHeight + document.documentElement.scrollTop >=
         document.documentElement.offsetHeight - 1000
       ) {
         loadMoreTeams()
       }
     }, 200),
-    []
+    [loading, pagination?.hasMore]
   )
 
   // Load teams with caching
@@ -90,9 +93,22 @@ export function OptimizedTeamsList({ initialTeams = [], initialStats }: TeamsLis
     // Check cache first
     const cachedData = getCachedData<{teams: Team[], stats: any, pagination: any}>(`/api/teams`, { ...filters, page })
     if (cachedData && !reset) {
-      setTeams(cachedData.teams)
-      setStats(cachedData.stats)
-      setPagination(cachedData.pagination)
+      setTeams(cachedData.teams || [])
+      if (cachedData.stats) {
+        setStats(cachedData.stats)
+      }
+      if (cachedData.pagination) {
+        setPagination({
+          ...pagination,
+          ...cachedData.pagination,
+          hasMore: cachedData.pagination.hasMore ?? false
+        })
+      } else {
+        setPagination({
+          ...pagination,
+          hasMore: false
+        })
+      }
       return
     }
 
@@ -112,21 +128,40 @@ export function OptimizedTeamsList({ initialTeams = [], initialStats }: TeamsLis
 
       const result = await execute(`/api/teams?${params}`)
       
-      if (result.success) {
-        const newTeams = reset ? result.data.teams : [...teams, ...result.data.teams]
+      if (result.success && result.data) {
+        const newTeams = reset ? (result.data.teams || []) : [...teams, ...(result.data.teams || [])]
         setTeams(newTeams)
-        setStats(result.data.stats)
-        setPagination(result.data.pagination)
+        if (result.data.stats) {
+          setStats(result.data.stats)
+        }
+        
+        // Ensure pagination has default values
+        const paginationData = result.data.pagination || {
+          page: page,
+          limit: pagination.limit,
+          total: result.data.teams?.length || 0,
+          hasMore: false
+        }
+        
+        // Calculate hasMore based on actual data
+        const hasMore = result.data.teams && result.data.teams.length === pagination.limit
+        
+        setPagination({
+          ...paginationData,
+          hasMore: paginationData.hasMore ?? hasMore
+        })
         
         // Cache the response
         setCachedData(`/api/teams`, result.data, { ...filters, page }, 5 * 60 * 1000) // 5 minutes
         
         // Preload team avatars
-        const avatarUrls = result.data.teams
-          .map((team: Team) => team.avatarUrl)
-          .filter(Boolean)
-        if (avatarUrls.length > 0) {
-          preloadImages(avatarUrls)
+        if (result.data.teams) {
+          const avatarUrls = result.data.teams
+            .map((team: Team) => team.avatarUrl)
+            .filter(Boolean)
+          if (avatarUrls.length > 0) {
+            preloadImages(avatarUrls)
+          }
         }
       }
     } catch (error) {
@@ -138,7 +173,7 @@ export function OptimizedTeamsList({ initialTeams = [], initialStats }: TeamsLis
 
   // Load more teams for infinite scroll
   const loadMoreTeams = async () => {
-    if (loading || !pagination.hasMore) return
+    if (loading || !pagination?.hasMore) return
     
     setPagination(prev => ({ ...prev, page: prev.page + 1 }))
     await loadTeams(false)
@@ -155,10 +190,41 @@ export function OptimizedTeamsList({ initialTeams = [], initialStats }: TeamsLis
     debouncedSearch(value)
   }
 
+  // Initial load on mount
+  useEffect(() => {
+    if (initialTeams.length === 0) {
+      loadTeams(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Refresh when refreshTrigger changes (e.g., after creating a team)
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      // Invalidate cache and reload
+      invalidateCache(`/api/teams`)
+      loadTeams(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger])
+
   // Load teams when filters change
   useEffect(() => {
-    loadTeams(true)
-  }, [filters])
+    // Skip initial render if we have initial teams
+    if (initialTeams.length > 0 && teams.length === initialTeams.length) {
+      return
+    }
+    
+    // Use setTimeout to ensure this runs after render, not during
+    const timeoutId = setTimeout(() => {
+      loadTeams(true)
+    }, 0)
+    
+    return () => {
+      clearTimeout(timeoutId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.search, filters.status, filters.projectType, filters.location])
 
   // Set up infinite scroll
   useEffect(() => {
@@ -417,7 +483,7 @@ export function OptimizedTeamsList({ initialTeams = [], initialStats }: TeamsLis
       )}
 
       {/* Load more button */}
-      {pagination.hasMore && !loading && (
+      {pagination?.hasMore && !loading && (
         <div className="flex justify-center">
           <Button onClick={loadMoreTeams} variant="outline">
             Load More Teams

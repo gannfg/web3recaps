@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServer } from '@/lib/supabase/server';
+import { createSupabaseServer, createSupabaseAdmin } from '@/lib/supabase/server';
 
 const ACCESS_COOKIE = "sb-access-token"
 const REFRESH_COOKIE = "sb-refresh-token"
@@ -32,7 +32,11 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    if (!userRole || !['ADMIN', 'AUTHOR'].includes(userRole.role)) {
+    // Check for both uppercase and title case roles
+    const allowedRoles = ['ADMIN', 'AUTHOR', 'Admin', 'Author'];
+    const userRoleValue = userRole?.role?.toUpperCase();
+    
+    if (!userRole || !allowedRoles.some(role => role.toUpperCase() === userRoleValue)) {
       return NextResponse.json({ 
         success: false, 
         error: "Insufficient permissions to upload media" 
@@ -100,10 +104,20 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const fileBuffer = new Uint8Array(arrayBuffer);
 
-    // Upload to Supabase Storage (using authenticated user context)
+    // Use admin client for storage upload to bypass RLS
+    // (We've already verified the user has permission via role check above)
+    const supabaseAdmin = createSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ 
+        success: false, 
+        error: "Server configuration error" 
+      }, { status: 500 });
+    }
+
+    // Upload to Supabase Storage using admin client
     console.log("Uploading to bucket:", bucket, "with fileName:", fileName);
     
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from(bucket)
       .upload(fileName, fileBuffer, {
         contentType: file.type,
@@ -113,6 +127,15 @@ export async function POST(request: NextRequest) {
 
     if (uploadError) {
       console.error("Upload error:", uploadError);
+      
+      // Provide helpful error message if bucket doesn't exist
+      if (uploadError.message?.includes('Bucket not found') || uploadError.message?.includes('not found')) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Storage bucket "${bucket}" not found. Please run "npm run setup-storage" to create the required buckets.` 
+        }, { status: 400 });
+      }
+      
       return NextResponse.json({ 
         success: false, 
         error: `Upload failed: ${uploadError.message}` 
@@ -120,12 +143,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Get public URL
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl } } = supabaseAdmin.storage
       .from(bucket)
       .getPublicUrl(fileName);
 
-    // Save media metadata to database
-    const { data: mediaRecord, error: dbError } = await supabase
+    // Save media metadata to database using admin client to bypass RLS
+    // (We've already verified the user has permission via role check above)
+    const { data: mediaRecord, error: dbError } = await supabaseAdmin
       .from('news_media')
       .insert({
         article_id: articleId || null,
@@ -145,7 +169,7 @@ export async function POST(request: NextRequest) {
     if (dbError) {
       console.error("Database error:", dbError);
       // Clean up uploaded file if database insert fails
-      await supabase.storage.from(bucket).remove([fileName]);
+      await supabaseAdmin.storage.from(bucket).remove([fileName]);
       return NextResponse.json({ 
         success: false, 
         error: "Failed to save media metadata" 

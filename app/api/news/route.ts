@@ -10,6 +10,11 @@ export async function GET(request: NextRequest) {
     const supabase = createSupabaseServer();
     if (!supabase) return NextResponse.json({ success: false, error: "Supabase not configured" }, { status: 500 });
     
+    // Add cache headers for better performance
+    const headers = new Headers({
+      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+    });
+    
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const filters: NewsFilters = {
@@ -119,7 +124,7 @@ export async function GET(request: NextRequest) {
     };
 
     console.log('Response being sent:', response);
-    return NextResponse.json({ success: true, data: response });
+    return NextResponse.json({ success: true, data: response }, { headers });
   } catch (error) {
     console.error('Error in news GET:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

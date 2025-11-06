@@ -26,7 +26,12 @@
     "test:browser": "node scripts/browser-performance-test-simple.js",
     "test:browser:prod": "TEST_URL=https://web3recap.io node scripts/browser-performance-test-simple.js",
     "test:api": "node scripts/api-speed-test.js",
-    "test:api:prod": "TEST_URL=https://web3recap.io node scripts/api-speed-test.js"
+    "test:api:prod": "TEST_URL=https://web3recap.io node scripts/api-speed-test.js",
+    "create-admin": "node scripts/create-admin-user.js",
+    "check-admin": "node scripts/check-admin-role.js",
+    "verify-news": "node scripts/verify-news-tables.js",
+    "setup-storage": "node scripts/create-news-storage-buckets.js",
+    "fix-rls": "node scripts/fix-news-media-rls.js"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "^1.3.1",
@@ -123,6 +128,7 @@
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^9.39.1",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
