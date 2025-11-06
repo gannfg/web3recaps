@@ -232,6 +232,47 @@ export function NewsManagementPage() {
     }
   };
 
+  const handleUpdateArticleFeatured = async (articleIdOrSlug: string, isFeatured: boolean) => {
+    try {
+      const result = await execute(`/api/news/${articleIdOrSlug}`, {
+        method: 'PUT',
+        body: JSON.stringify({ is_featured: isFeatured }),
+      });
+      
+      if (result.success) {
+        // Update the article in the local state
+        setArticles(prev => prev.map(article => {
+          const identifier = article.slug || article.id;
+          if (identifier === articleIdOrSlug) {
+            return { ...article, is_featured: isFeatured };
+          }
+          return article;
+        }));
+        
+        toast({
+          title: 'Success',
+          description: isFeatured 
+            ? 'Article marked as featured successfully.' 
+            : 'Article removed from featured successfully.',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: result.error || 'Failed to update article featured status.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error updating article featured status:', error);
+      toast({
+        title: 'Error',
+        description: 'An error occurred while updating the article featured status.',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     setFilters(prev => ({
       ...prev,
@@ -312,9 +353,11 @@ export function NewsManagementPage() {
           <TabsContent value="layout">
             <NewsLayoutBuilder
               articles={articles.filter(article => article.status === 'published')}
+              categories={categories}
               events={events}
               onUpdateArticleLayout={handleUpdateArticleLayout}
               onUpdateEventLayout={handleUpdateEventLayout}
+              onUpdateArticleFeatured={handleUpdateArticleFeatured}
               loading={loading}
             />
           </TabsContent>

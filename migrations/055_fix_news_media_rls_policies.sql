@@ -49,3 +49,4 @@ CREATE POLICY "Users can delete their own news media" ON news_media
 
 
 
+

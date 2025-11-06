@@ -1,575 +1,335 @@
-import { NewsArticle, Event, LayoutItem } from '@/lib/news-types';
-import { Button } from '@/components/ui/button';
+'use client';
+
+import { NewsArticle, NewsCategory } from '@/lib/news-types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { 
-  Clock, 
-  Eye, 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  Zap, 
-  Star,
-  Save,
-  RotateCcw
-} from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import Link from 'next/link';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Star,
+  Loader2,
+  Eye,
+  Calendar,
+  Filter
+} from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 
 interface NewsLayoutBuilderProps {
   articles: NewsArticle[];
-  events: Event[];
-  onUpdateArticleLayout: (articleId: string, layoutPosition: string) => Promise<void>;
-  onUpdateEventLayout: (eventId: string, layoutPosition: string) => Promise<void>;
-  onUpdateArticleFeatured?: (articleId: string, isFeatured: boolean) => Promise<void>;
+  categories?: NewsCategory[];
+  events?: any[];
+  onUpdateArticleLayout?: (articleIdOrSlug: string, layoutPosition: string) => void;
+  onUpdateEventLayout?: (eventId: string, layoutPosition: string) => void;
+  onUpdateArticleFeatured?: (articleId: string, isFeatured: boolean) => void;
   loading?: boolean;
 }
 
-const LAYOUT_POSITIONS = [
-  { value: 'none', label: 'Not Featured', description: 'Regular content in category sections' },
-  { value: 'featured_main', label: 'Featured Main', description: 'Large central image in featured section' },
-  { value: 'featured_left', label: 'Featured Left', description: 'Left text block in featured section' },
-  { value: 'featured_right', label: 'Featured Right', description: 'Right content block in featured section' },
-  { value: 'secondary_1', label: 'Secondary 1', description: 'Top-left in secondary grid' },
-  { value: 'secondary_2', label: 'Secondary 2', description: 'Top-center in secondary grid' },
-  { value: 'secondary_3', label: 'Secondary 3', description: 'Top-right in secondary grid' },
-];
-
-export function NewsLayoutBuilder({ 
-  articles, 
-  events,
+export function NewsLayoutBuilder({
+  articles,
+  categories = [],
+  events = [],
   onUpdateArticleLayout,
   onUpdateEventLayout,
   onUpdateArticleFeatured,
-  loading = false 
+  loading = false,
 }: NewsLayoutBuilderProps) {
-  const [updating, setUpdating] = useState<string | null>(null);
-  const [updatingFeatured, setUpdatingFeatured] = useState<string | null>(null);
-
-  const handleArticleLayoutChange = async (articleId: string, layoutPosition: string) => {
-    setUpdating(articleId);
-    try {
-      await onUpdateArticleLayout(articleId, layoutPosition);
-    } catch (error) {
-      console.error('Error updating article layout:', error);
-    } finally {
-      setUpdating(null);
-    }
-  };
-
-  const handleEventLayoutChange = async (eventId: string, layoutPosition: string) => {
-    setUpdating(eventId);
-    try {
-      await onUpdateEventLayout(eventId, layoutPosition);
-    } catch (error) {
-      console.error('Error updating event layout:', error);
-    } finally {
-      setUpdating(null);
-    }
-  };
-
-  const handleArticleFeaturedChange = async (articleId: string, isFeatured: boolean) => {
-    if (!onUpdateArticleFeatured) return;
-    
-    setUpdatingFeatured(articleId);
-    try {
-      await onUpdateArticleFeatured(articleId, isFeatured);
-    } catch (error) {
-      console.error('Error updating article featured status:', error);
-    } finally {
-      setUpdatingFeatured(null);
-    }
-  };
-
-  const getPositionBadge = (position: string) => {
-    if (!position || position === 'none') return <Badge variant="outline">Regular</Badge>;
-    
-    const layoutPos = LAYOUT_POSITIONS.find(p => p.value === position);
-    if (!layoutPos) return <Badge variant="outline">Unknown</Badge>;
-    
-    if (position.startsWith('featured_')) {
-      return <Badge variant="default" className="bg-yellow-500 text-black">Featured</Badge>;
-    } else if (position.startsWith('secondary_')) {
-      return <Badge variant="secondary">Secondary</Badge>;
-    }
-    
-    return <Badge variant="outline">{layoutPos.label}</Badge>;
-  };
+  const [updatingArticles, setUpdatingArticles] = useState<Set<string>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
-        ))}
-      </div>
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
     );
   }
 
+  // Get featured and non-featured articles
+  const featuredArticles = articles
+    .filter(article => article.is_featured)
+    .filter(article => !selectedCategory || article.category_id === selectedCategory)
+    .sort((a, b) => {
+      // Sort by published_at or created_at, most recent first
+      const dateA = new Date(a.published_at || a.created_at).getTime();
+      const dateB = new Date(b.published_at || b.created_at).getTime();
+      return dateB - dateA;
+    });
+
+  const nonFeaturedArticles = articles
+    .filter(article => !article.is_featured)
+    .filter(article => !selectedCategory || article.category_id === selectedCategory);
+
+  // Helper to get category name
+  const getCategoryName = (article: NewsArticle): string | undefined => {
+    if (article.category) {
+      return article.category.name;
+    }
+    const category = categories.find(cat => cat.id === article.category_id);
+    return category?.name;
+  };
+
+  const handleToggleFeatured = async (article: NewsArticle, isFeatured: boolean) => {
+    if (!onUpdateArticleFeatured) return;
+    
+    const identifier = article.slug || article.id;
+    setUpdatingArticles(prev => new Set(prev).add(identifier));
+    
+    try {
+      await onUpdateArticleFeatured(identifier, isFeatured);
+    } catch (error) {
+      console.error('Error updating featured status:', error);
+    } finally {
+      setUpdatingArticles(prev => {
+        const next = new Set(prev);
+        next.delete(identifier);
+        return next;
+      });
+    }
+  };
+
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Layout Builder</h2>
-        <div className="text-sm text-muted-foreground">
-          {articles.length} articles • {events.length} events • Drag to reorder
-        </div>
-      </div>
-
-      {/* Live Layout Preview */}
-      <div className="bg-muted/50 rounded-lg p-6 mb-8">
-        <h3 className="text-lg font-semibold mb-4">Live Layout Preview</h3>
-        <div className="max-w-6xl mx-auto">
-          {/* Featured Section Preview */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
-            {/* Featured Left */}
-            <div className="lg:col-span-3">
-              {(() => {
-                const article = articles.find(a => a.layout_position === 'featured_left');
-                const event = events.find(e => e.layout_position === 'featured_left');
-                const item = article || event;
-                
-                if (item) {
-                  return (
-                    <div className="bg-card rounded-lg border p-4 h-32">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant={article ? "default" : "secondary"} className="text-xs">
-                          {article ? "Article" : "Event"}
-                        </Badge>
-                        {item.is_featured && (
-                          <Badge variant="default" className="bg-yellow-500 text-black text-xs">
-                            <Star className="h-3 w-3 mr-1" />
-                            FEATURED
-                          </Badge>
-                        )}
-                      </div>
-                      <h4 className="font-semibold text-sm line-clamp-2 mb-2">
-                        {item.title}
-                      </h4>
-                      <p className="text-xs text-muted-foreground line-clamp-3">
-                        {article?.excerpt || event?.description}
-                      </p>
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div className="bg-yellow-100 dark:bg-yellow-900/20 rounded border-2 border-dashed border-yellow-400 flex items-center justify-center h-32">
-                    <span className="text-xs font-medium text-yellow-700 dark:text-yellow-300">Featured Left</span>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="h-5 w-5 text-yellow-500" />
+            Featured Articles Manager
+          </CardTitle>
+          <CardDescription>
+            Manage which articles appear as featured on the news page. Featured articles are displayed prominently at the top.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Category Filter */}
+          {categories.length > 0 && (
+            <Card className="bg-card border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold text-foreground">Categories</h3>
                   </div>
-                );
-              })()}
+                  <Select 
+                    value={selectedCategory || "all"} 
+                    onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
+                  >
+                    <SelectTrigger className="w-full max-w-xs">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-primary rounded-full"></div>
+                          <span>All Categories</span>
+                        </div>
+                      </SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2 h-2 rounded-full" 
+                              style={{ backgroundColor: category.color || 'var(--primary)' }}
+                            ></div>
+                            <span>{category.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {/* Featured Articles Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">
+                Featured Articles ({featuredArticles.length})
+              </h3>
+              <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
+                These appear on the news page
+              </Badge>
             </div>
 
-            {/* Featured Main */}
-            <div className="lg:col-span-6">
-              {(() => {
-                const article = articles.find(a => a.layout_position === 'featured_main');
-                const event = events.find(e => e.layout_position === 'featured_main');
-                const item = article || event;
-                
-                if (item) {
+            {featuredArticles.length > 0 ? (
+              <div className="space-y-3">
+                {featuredArticles.map((article, index) => {
+                  const identifier = article.slug || article.id;
+                  const isUpdating = updatingArticles.has(identifier);
+                  
                   return (
-                    <div className="bg-card rounded-lg border overflow-hidden h-32">
-                      <div className="relative h-24 mb-2">
-                        {(article?.featured_image_url || event?.banner_image) ? (
-                          <img
-                            src={article?.featured_image_url || event?.banner_image}
-                            alt={item.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <span className="text-white text-2xl font-bold">
-                              {item.title?.charAt(0)}
-                            </span>
+                    <Card key={article.id} className="border-2 border-yellow-500/20">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-4">
+                          {/* Article Image */}
+                          {article.featured_image_url ? (
+                            <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
+                              <Image
+                                src={article.featured_image_url}
+                                alt={article.title}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                              <span className="text-white text-2xl font-bold">
+                                {article.title.charAt(0)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Article Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start gap-2 mb-1">
+                              <h4 className="font-semibold text-base truncate">{article.title}</h4>
+                              <Badge variant="default" className="bg-yellow-500 text-black flex-shrink-0">
+                                <Star className="h-3 w-3 mr-1" />
+                                Featured
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Eye className="h-3 w-3" />
+                                {article.view_count || 0} views
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(article.published_at || article.created_at).toLocaleDateString()}
+                              </span>
+                              {getCategoryName(article) && (
+                                <Badge variant="outline" className="text-xs">
+                                  {getCategoryName(article)}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                      <div className="px-2">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant={article ? "default" : "secondary"} className="text-xs">
-                            {article ? "Article" : "Event"}
-                          </Badge>
-                          {item.is_featured && (
-                            <Badge variant="default" className="bg-yellow-500 text-black text-xs">
-                              <Star className="h-3 w-3 mr-1" />
-                              FEATURED
-                            </Badge>
+
+                          {/* Controls */}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {/* Featured Toggle */}
+                            {onUpdateArticleFeatured && (
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={article.is_featured}
+                                  onCheckedChange={(checked) => handleToggleFeatured(article, checked)}
+                                  disabled={isUpdating}
+                                />
+                                {isUpdating && (
+                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="py-12 text-center">
+                  <Star className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    No featured articles yet. Toggle articles below to feature them.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Non-Featured Articles Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">
+                All Published Articles ({nonFeaturedArticles.length})
+              </h3>
+            </div>
+
+            {nonFeaturedArticles.length > 0 ? (
+              <div className="space-y-2">
+                {nonFeaturedArticles.map((article) => {
+                  const identifier = article.slug || article.id;
+                  const isUpdating = updatingArticles.has(identifier);
+                  
+                  return (
+                    <Card key={article.id} className="hover:border-primary/50 transition-colors">
+                      <CardContent className="p-3">
+                        <div className="flex items-center gap-3">
+                          {/* Article Image */}
+                          {article.featured_image_url ? (
+                            <div className="relative w-16 h-16 rounded overflow-hidden flex-shrink-0">
+                              <Image
+                                src={article.featured_image_url}
+                                alt={article.title}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-16 h-16 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                              <span className="text-white text-lg font-bold">
+                                {article.title.charAt(0)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Article Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{article.title}</p>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                              <span>{article.view_count || 0} views</span>
+                              <span>•</span>
+                              <span>{new Date(article.published_at || article.created_at).toLocaleDateString()}</span>
+                              {getCategoryName(article) && (
+                                <>
+                                  <span>•</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {getCategoryName(article)}
+                                  </Badge>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Featured Toggle */}
+                          {onUpdateArticleFeatured && (
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-sm text-muted-foreground">Feature</span>
+                              <Switch
+                                checked={false}
+                                onCheckedChange={(checked) => handleToggleFeatured(article, checked)}
+                                disabled={isUpdating}
+                              />
+                              {isUpdating && (
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              )}
+                            </div>
                           )}
                         </div>
-                        <h4 className="font-semibold text-sm line-clamp-1">
-                          {item.title}
-                        </h4>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   );
-                }
-                
-                return (
-                  <div className="bg-yellow-100 dark:bg-yellow-900/20 rounded border-2 border-dashed border-yellow-400 flex items-center justify-center h-32">
-                    <span className="text-xs font-medium text-yellow-700 dark:text-yellow-300">Featured Main</span>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Featured Right */}
-            <div className="lg:col-span-3">
-              {(() => {
-                const article = articles.find(a => a.layout_position === 'featured_right');
-                const event = events.find(e => e.layout_position === 'featured_right');
-                const item = article || event;
-                
-                if (item) {
-                  return (
-                    <div className="bg-card rounded-lg border overflow-hidden h-32">
-                      <div className="relative h-20 mb-2">
-                        {(article?.featured_image_url || event?.banner_image) ? (
-                          <img
-                            src={article?.featured_image_url || event?.banner_image}
-                            alt={item.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
-                            <span className="text-white text-xl font-bold">
-                              {item.title?.charAt(0)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="px-2">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant={article ? "default" : "secondary"} className="text-xs">
-                            {article ? "Article" : "Event"}
-                          </Badge>
-                          {item.is_featured && (
-                            <Badge variant="default" className="bg-yellow-500 text-black text-xs">
-                              <Star className="h-3 w-3 mr-1" />
-                              FEATURED
-                            </Badge>
-                          )}
-                        </div>
-                        <h4 className="font-semibold text-sm line-clamp-2">
-                          {item.title}
-                        </h4>
-                      </div>
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div className="bg-yellow-100 dark:bg-yellow-900/20 rounded border-2 border-dashed border-yellow-400 flex items-center justify-center h-32">
-                    <span className="text-xs font-medium text-yellow-700 dark:text-yellow-300">Featured Right</span>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* Secondary Content Grid Preview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, index) => {
-              const position = index + 1;
-              const article = articles.find(a => a.layout_position === `secondary_${position}`);
-              const event = events.find(e => e.layout_position === `secondary_${position}`);
-              const item = article || event;
-              
-              return (
-                <div key={index} className="h-24">
-                  {item ? (
-                    <div className="bg-card rounded-lg border overflow-hidden h-full">
-                      <div className="relative h-16">
-                        {(article?.featured_image_url || event?.banner_image) ? (
-                          <img
-                            src={article?.featured_image_url || event?.banner_image}
-                            alt={item.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <span className="text-white text-lg font-bold">
-                              {item.title?.charAt(0)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-2">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Badge variant={article ? "default" : "secondary"} className="text-xs">
-                            {article ? "Article" : "Event"}
-                          </Badge>
-                        </div>
-                        <h4 className="font-semibold text-xs line-clamp-2">
-                          {item.title}
-                        </h4>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-blue-100 dark:bg-blue-900/20 rounded border-2 border-dashed border-blue-400 flex items-center justify-center h-full">
-                      <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Secondary {position}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Content List */}
-      <div className="space-y-4">
-        {/* Articles Section */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground">Articles</h3>
-          {articles.map((article) => (
-          <div key={article.id} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-start gap-4">
-              {/* Article Image */}
-              <div className="relative w-24 h-16 flex-shrink-0">
-                {article.featured_image_url ? (
-                  <Image
-                    src={article.featured_image_url}
-                    alt={article.title}
-                    fill
-                    className="object-cover rounded"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 rounded flex items-center justify-center">
-                    <span className="text-white text-lg font-bold">
-                      {article.title.charAt(0)}
-                    </span>
-                  </div>
-                )}
+                })}
               </div>
-
-              {/* Article Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0">
-                    <Link href={`/news/${article.slug}`}>
-                      <h3 className="font-semibold text-foreground hover:text-blue-600 transition-colors line-clamp-2">
-                        {article.title}
-                      </h3>
-                    </Link>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                      {article.excerpt}
-                    </p>
-                  </div>
-                  
-                  {/* Current Position Badge */}
-                  <div className="ml-4 flex-shrink-0">
-                    {getPositionBadge(article.layout_position || '')}
-                  </div>
-                </div>
-
-                {/* Article Meta */}
-                <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {new Date(article.published_at || article.created_at).toLocaleDateString()}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Eye className="h-3 w-3" />
-                    {article.view_count || 0}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Heart className="h-3 w-3" />
-                    {article.like_count || 0}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MessageCircle className="h-3 w-3" />
-                    {article.comment_count || 0}
-                  </div>
-                  {article.is_breaking && (
-                    <Badge variant="destructive" className="text-xs">
-                      <Zap className="h-3 w-3 mr-1" />
-                      BREAKING
-                    </Badge>
-                  )}
-                  {article.is_featured && (
-                    <Badge variant="default" className="bg-yellow-500 text-black text-xs">
-                      <Star className="h-3 w-3 mr-1" />
-                      FEATURED
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Featured Toggle and Layout Position */}
-                <div className="space-y-3">
-                  {/* Featured Toggle */}
-                  {onUpdateArticleFeatured && (
-                    <div className="flex items-center gap-3">
-                      <Label htmlFor={`featured-${article.id}`} className="text-sm font-medium text-foreground flex items-center gap-2">
-                        <Star className="h-4 w-4" />
-                        Featured:
-                      </Label>
-                      <Switch
-                        id={`featured-${article.id}`}
-                        checked={article.is_featured || false}
-                        onCheckedChange={(checked) => handleArticleFeaturedChange(article.id, checked)}
-                        disabled={updatingFeatured === article.id}
-                      />
-                      {updatingFeatured === article.id && (
-                        <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Layout Position Selector */}
-                  <div className="flex items-center gap-3">
-                    <label className="text-sm font-medium text-foreground">
-                      Layout Position:
-                    </label>
-                    <Select
-                      value={article.layout_position || 'none'}
-                      onValueChange={(value) => handleArticleLayoutChange(article.id, value === 'none' ? '' : value)}
-                      disabled={updating === article.id}
-                    >
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Select position..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LAYOUT_POSITIONS.map((position) => (
-                          <SelectItem key={position.value} value={position.value}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{position.label}</span>
-                              <span className="text-xs text-muted-foreground">{position.description}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    {updating === article.id && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
-                        Updating...
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">
+                    No published articles available.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
-        ))}
-        </div>
-
-        {/* Events Section */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground">Events</h3>
-          {events.map((event) => (
-            <div key={event.id} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-4">
-                {/* Event Image */}
-                <div className="relative w-24 h-16 flex-shrink-0">
-                  {event.banner_image ? (
-                    <Image
-                      src={event.banner_image}
-                      alt={event.title}
-                      fill
-                      className="object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-600 rounded flex items-center justify-center">
-                      <span className="text-white text-lg font-bold">
-                        {event.title.charAt(0)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Event Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/events/${event.id}`}>
-                        <h3 className="font-semibold text-foreground hover:text-blue-600 transition-colors line-clamp-2">
-                          {event.title}
-                        </h3>
-                      </Link>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                        {event.description}
-                      </p>
-                    </div>
-                    
-                    {/* Current Position Badge */}
-                    <div className="ml-4 flex-shrink-0">
-                      {getPositionBadge(event.layout_position || '')}
-                    </div>
-                  </div>
-
-                  {/* Event Meta */}
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {new Date(event.event_date).toLocaleDateString()}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs bg-muted px-2 py-1 rounded">
-                        {event.event_type}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs">
-                        {event.current_attendees_count}/{event.max_attendees} attendees
-                      </span>
-                    </div>
-                    {event.is_featured && (
-                      <Badge variant="default" className="bg-yellow-500 text-black text-xs">
-                        <Star className="h-3 w-3 mr-1" />
-                        FEATURED
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Layout Position Selector */}
-                  <div className="flex items-center gap-3">
-                    <label className="text-sm font-medium text-foreground">
-                      Layout Position:
-                    </label>
-                    <Select
-                      value={event.layout_position || 'none'}
-                      onValueChange={(value) => handleEventLayoutChange(event.id, value === 'none' ? '' : value)}
-                      disabled={updating === event.id}
-                    >
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Select position..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LAYOUT_POSITIONS.map((position) => (
-                          <SelectItem key={position.value} value={position.value}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{position.label}</span>
-                              <span className="text-xs text-muted-foreground">{position.description}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    {updating === event.id && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
-                        Updating...
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -117,7 +117,14 @@ export const PostCard = memo(function PostCard({ post, author, onLike, onComment
   }
 
   const handleLike = async () => {
-    if (!user) return
+    if (!user) {
+      console.warn('User not logged in, cannot like post')
+      alert('Please log in to like posts')
+      return
+    }
+
+    const previousLikedState = isLiked
+    const previousLikesCount = likesCount
 
     try {
       // Toggle like state optimistically
@@ -132,7 +139,6 @@ export const PostCard = memo(function PostCard({ post, author, onLike, onComment
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": user.id,
         },
         body: JSON.stringify({
           liked: newLikedState
@@ -141,21 +147,33 @@ export const PostCard = memo(function PostCard({ post, author, onLike, onComment
 
       if (!result.success) {
         // Revert on error
-        setIsLiked(isLiked)
-        setLikesCount(likesCount)
+        setIsLiked(previousLikedState)
+        setLikesCount(previousLikesCount)
         console.error('Failed to like post:', result.error)
+        // Show error to user
+        alert(`Failed to like post: ${result.error || 'Unknown error'}`)
       } else {
+        // Update with server response if available
+        if (result.data?.likesCount !== undefined) {
+          setLikesCount(result.data.likesCount)
+        }
         onLike?.(post.id)
       }
     } catch (error) {
       // Revert on error
-      setIsLiked(isLiked)
-      setLikesCount(likesCount)
+      setIsLiked(previousLikedState)
+      setLikesCount(previousLikesCount)
       console.error('Like error:', error)
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to like post'}`)
     }
   }
 
   const handleComment = async () => {
+    if (!user) {
+      alert('Please log in to comment on posts')
+      return
+    }
+    
     setCommentModalOpen(true)
     
     // Load comments when modal opens
@@ -172,6 +190,8 @@ export const PostCard = memo(function PostCard({ post, author, onLike, onComment
         if (actualCommentCount !== commentsCount) {
           setCommentsCount(actualCommentCount)
         }
+      } else {
+        console.error('Failed to load comments:', result.error)
       }
     } catch (error) {
       console.error('Error loading comments:', error)

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
-import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
@@ -33,23 +32,78 @@ import { generateArticleHTML } from '@/lib/news-html-utils';
 // Plugin to set initial content
 function InitialTextPlugin({ initialValue }: { initialValue: string }) {
   const [hasSetInitial, setHasSetInitial] = useState(false);
+  const lastInitialValueRef = useRef<string>('');
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    if (initialValue && !hasSetInitial && editor) {
+    // Only run on mount or when initialValue changes significantly (external update)
+    if (!editor) return;
+    
+    if (!hasSetInitial) {
+      // Only set initial content on first mount
       editor.update(() => {
         const root = $getRoot();
-        if (root.getChildren().length === 0) {
-          // Parse HTML and insert nodes
-          const parser = new DOMParser();
-          const dom = parser.parseFromString(initialValue, 'text/html');
-          const nodes = $generateNodesFromDOM(editor, dom);
-          root.append(...nodes);
+        
+        // Only set if editor is empty and we have initialValue
+        if (root.getChildren().length === 0 && initialValue && initialValue.trim()) {
+          try {
+            const parser = new DOMParser();
+            const dom = parser.parseFromString(initialValue, 'text/html');
+            const nodes = $generateNodesFromDOM(editor, dom);
+            if (nodes.length > 0) {
+              root.append(...nodes);
+            }
+          } catch (error) {
+            console.error('Error parsing initial HTML:', error);
+            // Fallback: insert as plain text
+            const textNode = $createTextNode(initialValue);
+            const paragraphNode = $createParagraphNode();
+            paragraphNode.append(textNode);
+            root.append(paragraphNode);
+          }
         }
         setHasSetInitial(true);
+        lastInitialValueRef.current = initialValue || '';
       });
+    } else if (initialValue !== lastInitialValueRef.current && initialValue && initialValue.trim()) {
+      // Only update if initialValue changed externally (e.g., loading saved content)
+      // This prevents overwriting user edits but allows loading saved content
+      // Use a debounced check to avoid interfering with typing
+      const timeoutId = setTimeout(() => {
+        editor.getEditorState().read(() => {
+          const root = $getRoot();
+          const currentText = root.getTextContent();
+          
+          // Only update if the content is significantly different (more than 50% difference)
+          // This is a heuristic to avoid overwriting user changes
+          const lengthDiff = Math.abs(currentText.length - initialValue.length);
+          const shouldUpdate = currentText.trim() === '' || 
+                              (lengthDiff > Math.max(50, currentText.length * 0.5));
+          
+          if (shouldUpdate) {
+            editor.update(() => {
+              const root = $getRoot();
+              root.clear();
+              
+              try {
+                const parser = new DOMParser();
+                const dom = parser.parseFromString(initialValue, 'text/html');
+                const nodes = $generateNodesFromDOM(editor, dom);
+                if (nodes.length > 0) {
+                  root.append(...nodes);
+                }
+              } catch (error) {
+                console.error('Error parsing updated HTML:', error);
+              }
+            });
+            lastInitialValueRef.current = initialValue;
+          }
+        });
+      }, 1000); // Wait 1 second before checking if we should update
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [initialValue, hasSetInitial, editor]);
+  }, [initialValue, editor, hasSetInitial]);
 
   return null;
 }
@@ -207,44 +261,69 @@ export function AdvancedRichTextEditor({
   className = '',
 }: AdvancedRichTextEditorProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const onChangeRef = useRef(onChange);
+  
+  // Keep onChange ref updated
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Don't reset editor key to prevent re-mounting during typing
+  // Debounced HTML generation to avoid blocking on every keystroke
+  const generateHTML = useCallback((editorState: any, editor: any): string => {
+    // Use the utility function which handles everything properly
+    return generateArticleHTML(editorState, editor);
+  }, []);
 
-  const handleEditorChange = useCallback((editorState: any) => {
-    editorState.read(() => {
-      try {
+  const handleEditorChange = useCallback((editorState: any, editor: any) => {
+    // Clear existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Get text content immediately (lightweight operation)
+    let textString = '';
+    try {
+      editorState.read(() => {
         const root = $getRoot();
-        const textString = root.getTextContent();
-        
-        const children = root.getChildren();
-        
-        // Custom HTML generation that handles our custom nodes
-        let htmlString = '';
-        try {
-          // Use our custom HTML generation that handles ImageNode
-          htmlString = generateArticleHTML(editorState);
-        } catch (lexicalError) {
-          console.warn('Custom HTML generation failed, using fallback:', lexicalError);
-          // Fallback to Lexical's built-in method
-          htmlString = $generateHtmlFromNodes(editorState, null);
-        }
-        
-        // If we still don't have HTML, use our utility
-        if (!htmlString || htmlString.trim() === '') {
-          htmlString = generateArticleHTML(editorState);
-        }
-        
-        onChange(htmlString, textString);
+        textString = root.getTextContent();
+      });
+    } catch (error) {
+      console.error('Error reading text content:', error);
+    }
+    
+    // Debounce expensive HTML generation
+    debounceTimerRef.current = setTimeout(() => {
+      try {
+        editorState.read(() => {
+          const htmlString = generateHTML(editorState, editor);
+          
+          // Call onChange with debounced HTML
+          if (onChangeRef.current) {
+            onChangeRef.current(htmlString, textString);
+          }
+        });
       } catch (error) {
         console.error('Error in editor change handler:', error);
-        onChange('', '');
+        if (onChangeRef.current) {
+          onChangeRef.current('', textString);
+        }
       }
-    });
-  }, [onChange]);
+    }, 300); // 300ms debounce - fast enough to feel responsive, slow enough to avoid blocking
+  }, [generateHTML]);
+  
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!isMounted) {
     return (
@@ -274,12 +353,16 @@ export function AdvancedRichTextEditor({
             <ToolbarPlugin />
             
             {/* Editor */}
-            <div className="relative" style={{ wordWrap: 'break-word', overflowWrap: 'anywhere' }}>
+            <div 
+              className="relative" 
+              style={{ wordWrap: 'break-word', overflowWrap: 'anywhere' }}
+            >
               <RichTextPlugin
                 contentEditable={
                   <ContentEditable
                     className="min-h-[400px] max-h-[800px] overflow-y-auto p-4 focus:outline-none break-words whitespace-pre-wrap"
                     style={{ minHeight, maxHeight, wordWrap: 'break-word', overflowWrap: 'anywhere' }}
+                    suppressContentEditableWarning={true}
                   />
                 }
                 placeholder={<Placeholder text={placeholder} />}
@@ -290,7 +373,6 @@ export function AdvancedRichTextEditor({
               <InitialTextPlugin initialValue={initialValue} />
               <OnChangePlugin onChange={handleEditorChange} />
               <HistoryPlugin />
-              <AutoFocusPlugin />
               <LinkPlugin />
               <ListPlugin />
               <ImagePlugin />

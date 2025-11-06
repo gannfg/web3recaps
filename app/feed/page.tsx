@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { useSession } from '@/store/useSession'
 import { PostCard } from '@/components/posts/post-card'
-import { PostComposer } from '@/components/posts/post-composer'
+import { EnhancedPostComposer } from '@/components/feed/enhanced-post-composer'
 import { ActivitySidebar } from '@/components/feed/activity-sidebar'
 import { EventsSidebar } from '@/components/feed/events-sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -143,7 +143,21 @@ export default function FeedPage() {
           {/* Post Composer (for authenticated users) */}
           {user && (
             <div className="mb-6">
-              <PostComposer onPostCreated={handlePostCreated} />
+              <EnhancedPostComposer 
+                onPostCreated={(post) => {
+                  // Add the new post to the top of the feed
+                  if (post) {
+                    setPosts(prev => {
+                      // Remove any temporary post with the same ID
+                      const filtered = prev.filter(p => p.id !== post.id)
+                      return [post, ...filtered]
+                    })
+                    // Reload to get the full post data from server
+                    loadPosts(false)
+                  }
+                }} 
+                placeholder="What's happening in the Solana ecosystem?"
+              />
             </div>
           )}
 

@@ -94,14 +94,37 @@ export async function recordAction(
   // Update cooldown
   cooldowns.set(actionKey, now);
 
-  // Update daily count
+  // Update daily count - use SQL increment function if available, otherwise manual increment
+  // Try using the database function first (more efficient and handles RLS better)
+  const { data: functionResult, error: functionError } = await supabase.rpc('increment_action_count', {
+    p_user_id: userId,
+    p_action_type: action,
+    p_date: today
+  });
+
+  if (!functionError && functionResult !== null) {
+    // Function worked, return success
+    return true;
+  }
+
+  // Fallback to manual increment if function doesn't exist or fails
+  const { data: existingRecord } = await supabase
+    .from('user_action_limits')
+    .select('action_count')
+    .eq('user_id', userId)
+    .eq('action_type', action)
+    .eq('date', today)
+    .maybeSingle(); // Use maybeSingle to handle no rows found gracefully
+
+  const newCount = (existingRecord?.action_count || 0) + 1;
+
   const { error } = await supabase
     .from('user_action_limits')
     .upsert({
       user_id: userId,
       action_type: action,
       date: today,
-      action_count: 1
+      action_count: newCount
     }, {
       onConflict: 'user_id,action_type,date',
       ignoreDuplicates: false
@@ -109,6 +132,13 @@ export async function recordAction(
 
   if (error) {
     console.error('Error recording action:', error);
+    // Don't fail if table doesn't exist or RLS blocks - just log and allow (graceful degradation)
+    if (error.code === '42P01' || error.message?.includes('does not exist') || 
+        error.code === '42501' || error.message?.includes('permission denied') ||
+        error.code === 'PGRST301' || error.message?.includes('new row violates row-level security')) {
+      console.warn('Rate limit recording failed (RLS or table issue), allowing action:', error.message);
+      return true; // Allow action if we can't record (graceful degradation)
+    }
     return false;
   }
 

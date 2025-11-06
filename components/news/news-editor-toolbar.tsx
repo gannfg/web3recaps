@@ -248,28 +248,16 @@ export function ToolbarPlugin() {
           // Insert the uploaded image into the editor
           editor.update(() => {
             const imageNode = $createImageNode(result.data.publicUrl);
-            console.log('Creating image node with URL:', result.data.publicUrl);
-            console.log('Image node created:', imageNode);
-            
             // Insert at current selection or at the end
             const selection = $getSelection();
             if (selection && $isRangeSelection(selection)) {
               // Insert at current cursor position
               $insertNodes([imageNode]);
-              console.log('Image inserted at cursor position');
             } else {
               // Insert at the end of the document
               const root = $getRoot();
               root.append(imageNode);
-              console.log('Image appended to root');
             }
-            
-            // Debug: Check if image was actually added
-            const root = $getRoot();
-            const children = root.getChildren();
-            console.log('Root children after insertion:', children.length);
-            console.log('Last child:', children[children.length - 1]);
-            console.log('Image node inserted successfully');
           });
         } else {
           alert('Failed to upload image: ' + (result.error || 'Unknown error'));
@@ -315,9 +303,6 @@ export function ToolbarPlugin() {
             // Insert at the root level like images
             const root = $getRoot();
             root.append(linkNode);
-            console.log('Video link inserted into editor');
-            console.log('Video URL:', result.data.publicUrl);
-            console.log('Video file type:', file.type);
           });
         } else {
           alert('Failed to upload video: ' + (result.error || 'Unknown error'));
@@ -331,19 +316,16 @@ export function ToolbarPlugin() {
   };
 
   const insertYouTube = () => {
-    const url = prompt('Enter YouTube URL:');
-    if (url) {
-      editor.update(() => {
-        const youtubeNode = $createYouTubeNode(url);
-        console.log('Creating YouTube node with URL:', url);
-        console.log('YouTube node created:', youtubeNode);
-        
-        // Insert at the root level like images
-        const root = $getRoot();
-        root.append(youtubeNode);
-        console.log('YouTube node inserted into editor');
-      });
-    }
+      const url = prompt('Enter YouTube URL:');
+      if (url) {
+        editor.update(() => {
+          const youtubeNode = $createYouTubeNode(url);
+          
+          // Insert at the root level like images
+          const root = $getRoot();
+          root.append(youtubeNode);
+        });
+      }
   };
 
   const insertLink = () => {
@@ -368,14 +350,15 @@ export function ToolbarPlugin() {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/30">
+    <div className="flex flex-wrap items-center gap-1.5 p-2 border-b bg-muted/30">
       {/* Undo/Redo */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <Button
           variant="ghost"
           size="sm"
           disabled={!canUndo}
           onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+          className="h-8 w-8 p-0"
         >
           <Undo className="h-4 w-4" />
         </Button>
@@ -384,19 +367,21 @@ export function ToolbarPlugin() {
           size="sm"
           disabled={!canRedo}
           onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+          className="h-8 w-8 p-0"
         >
           <Redo className="h-4 w-4" />
         </Button>
       </div>
 
-      <Separator orientation="vertical" className="h-6" />
+      <Separator orientation="vertical" className="h-6 mx-0.5" />
 
       {/* Text Formatting */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <Button
           variant={isBold ? "default" : "ghost"}
           size="sm"
           onClick={() => formatText('bold')}
+          className="h-8 w-8 p-0"
         >
           <Bold className="h-4 w-4" />
         </Button>
@@ -404,6 +389,7 @@ export function ToolbarPlugin() {
           variant={isItalic ? "default" : "ghost"}
           size="sm"
           onClick={() => formatText('italic')}
+          className="h-8 w-8 p-0"
         >
           <Italic className="h-4 w-4" />
         </Button>
@@ -411,6 +397,7 @@ export function ToolbarPlugin() {
           variant={isUnderline ? "default" : "ghost"}
           size="sm"
           onClick={() => formatText('underline')}
+          className="h-8 w-8 p-0"
         >
           <Underline className="h-4 w-4" />
         </Button>
@@ -418,6 +405,7 @@ export function ToolbarPlugin() {
           variant={isStrikethrough ? "default" : "ghost"}
           size="sm"
           onClick={() => formatText('strikethrough')}
+          className="h-8 w-8 p-0"
         >
           <Strikethrough className="h-4 w-4" />
         </Button>
@@ -425,6 +413,7 @@ export function ToolbarPlugin() {
           variant={isCode ? "default" : "ghost"}
           size="sm"
           onClick={() => formatText('code')}
+          className="h-8 w-8 p-0"
         >
           <Code className="h-4 w-4" />
         </Button>
@@ -432,26 +421,29 @@ export function ToolbarPlugin() {
           variant={isMark ? "default" : "ghost"}
           size="sm"
           onClick={insertMark}
+          className="h-8 w-8 p-0"
         >
           <Highlighter className="h-4 w-4" />
         </Button>
       </div>
 
-      <Separator orientation="vertical" className="h-6" />
+      <Separator orientation="vertical" className="h-6 mx-0.5" />
 
       {/* Block Types */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <Type className="h-4 w-4 mr-1" />
-              {blockType === 'paragraph' ? 'Normal' : 
-               blockType === 'h1' ? 'Heading 1' :
-               blockType === 'h2' ? 'Heading 2' :
-               blockType === 'h3' ? 'Heading 3' :
-               blockType === 'quote' ? 'Quote' :
-               blockType === 'code' ? 'Code' :
-               blockType === 'list' ? 'List' : 'Normal'}
+            <Button variant="ghost" size="sm" className="h-8 px-2">
+              <Type className="h-4 w-4 mr-1.5" />
+              <span className="text-xs">
+                {blockType === 'paragraph' ? 'Normal' : 
+                 blockType === 'h1' ? 'Heading 1' :
+                 blockType === 'h2' ? 'Heading 2' :
+                 blockType === 'h3' ? 'Heading 3' :
+                 blockType === 'quote' ? 'Quote' :
+                 blockType === 'code' ? 'Code' :
+                 blockType === 'list' ? 'List' : 'Normal'}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
@@ -482,6 +474,7 @@ export function ToolbarPlugin() {
           variant={isList ? "default" : "ghost"}
           size="sm"
           onClick={() => insertList('bullet')}
+          className="h-8 w-8 p-0"
         >
           <List className="h-4 w-4" />
         </Button>
@@ -489,19 +482,21 @@ export function ToolbarPlugin() {
           variant="ghost"
           size="sm"
           onClick={() => insertList('number')}
+          className="h-8 w-8 p-0"
         >
           <ListOrdered className="h-4 w-4" />
         </Button>
       </div>
 
-      <Separator orientation="vertical" className="h-6" />
+      <Separator orientation="vertical" className="h-6 mx-0.5" />
 
       {/* Media & Links */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <Button
           variant={isLink ? "default" : "ghost"}
           size="sm"
           onClick={insertLink}
+          className="h-8 w-8 p-0"
         >
           <Link className="h-4 w-4" />
         </Button>
@@ -509,6 +504,7 @@ export function ToolbarPlugin() {
           variant="ghost"
           size="sm"
           onClick={insertImage}
+          className="h-8 w-8 p-0"
         >
           <Image className="h-4 w-4" />
         </Button>
@@ -517,6 +513,7 @@ export function ToolbarPlugin() {
           size="sm"
           onClick={insertVideo}
           title="Upload Video"
+          className="h-8 w-8 p-0"
         >
           <Video className="h-4 w-4" />
         </Button>
@@ -525,6 +522,7 @@ export function ToolbarPlugin() {
           size="sm"
           onClick={insertYouTube}
           title="Insert YouTube"
+          className="h-8 w-8 p-0"
         >
           <Youtube className="h-4 w-4" />
         </Button>
@@ -532,19 +530,21 @@ export function ToolbarPlugin() {
           variant="ghost"
           size="sm"
           onClick={insertTable}
+          className="h-8 w-8 p-0"
         >
           <Table className="h-4 w-4" />
         </Button>
       </div>
 
-      <Separator orientation="vertical" className="h-6" />
+      <Separator orientation="vertical" className="h-6 mx-0.5" />
 
       {/* Alignment */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => formatElement('left')}
+          className="h-8 w-8 p-0"
         >
           <AlignLeft className="h-4 w-4" />
         </Button>
@@ -552,6 +552,7 @@ export function ToolbarPlugin() {
           variant="ghost"
           size="sm"
           onClick={() => formatElement('center')}
+          className="h-8 w-8 p-0"
         >
           <AlignCenter className="h-4 w-4" />
         </Button>
@@ -559,6 +560,7 @@ export function ToolbarPlugin() {
           variant="ghost"
           size="sm"
           onClick={() => formatElement('right')}
+          className="h-8 w-8 p-0"
         >
           <AlignRight className="h-4 w-4" />
         </Button>
@@ -566,6 +568,7 @@ export function ToolbarPlugin() {
           variant="ghost"
           size="sm"
           onClick={() => formatElement('justify')}
+          className="h-8 w-8 p-0"
         >
           <AlignJustify className="h-4 w-4" />
         </Button>

@@ -10,19 +10,41 @@ import { CodeNode } from '@lexical/code';
 /**
  * Enhanced HTML generation for news articles that preserves all styling
  */
-export function generateArticleHTML(editorState: any): string {
+export function generateArticleHTML(editorState: any, editor?: any): string {
   try {
-    // Use Lexical's built-in HTML generation first
-    const htmlString = $generateHtmlFromNodes(editorState, null);
+    // Always prefer Lexical's built-in HTML generation (it handles escaping properly)
+    let htmlString = '';
+    if (editor) {
+      // Use editor instance if available - this is the preferred method
+      htmlString = $generateHtmlFromNodes(editor, null);
+    } else if (editorState) {
+      // Try to get HTML from editorState
+      try {
+        // If editorState has a read method, we need to read the state first
+        if (typeof editorState.read === 'function') {
+          // We can't use $generateHtmlFromNodes directly with editorState
+          // Fall through to manual processing
+          return generateHTMLFromNodes(editorState);
+        } else {
+          // Try direct call (unlikely to work but worth trying)
+          htmlString = $generateHtmlFromNodes(editorState, null);
+        }
+      } catch (e) {
+        // If that fails, use manual processing
+        return generateHTMLFromNodes(editorState);
+      }
+    }
     
     if (htmlString && htmlString.trim()) {
+      // Only enhance styling, don't modify the structure
+      // Lexical already properly escapes HTML entities
       return enhanceHTMLStyling(htmlString);
     }
   } catch (error) {
     console.warn('Lexical HTML generation failed, using fallback:', error);
   }
 
-  // Fallback: Manual processing with proper formatting detection
+  // Fallback: Manual processing with proper formatting detection and escaping
   return generateHTMLFromNodes(editorState);
 }
 
@@ -238,6 +260,25 @@ function processTextNode(node: any): string {
 }
 
 /**
+ * Escape HTML entities to prevent XSS and rendering issues
+ */
+function escapeHtml(text: string): string {
+  if (!text) return '';
+  const div = typeof document !== 'undefined' ? document.createElement('div') : null;
+  if (div) {
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  // Server-side fallback
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Process individual text formatting
  */
 function processTextFormatting(textNode: any): string {
@@ -254,6 +295,9 @@ function processTextFormatting(textNode: any): string {
   
   if (!text) return '';
   
+  // Escape HTML entities first
+  const escapedText = escapeHtml(text);
+  
   // Check for formatting flags safely
   const isBold = typeof textNode.hasFormat === 'function' ? textNode.hasFormat('bold') : false;
   const isItalic = typeof textNode.hasFormat === 'function' ? textNode.hasFormat('italic') : false;
@@ -261,25 +305,30 @@ function processTextFormatting(textNode: any): string {
   const isStrikethrough = typeof textNode.hasFormat === 'function' ? textNode.hasFormat('strikethrough') : false;
   const isCode = typeof textNode.hasFormat === 'function' ? textNode.hasFormat('code') : false;
   
-  // Apply formatting tags
+  // Apply formatting tags (text is already escaped)
   if (isCode) {
-    text = `<code style="background: hsl(var(--muted)); padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.875rem; color: hsl(var(--foreground));">${text}</code>`;
+    return `<code style="background: hsl(var(--muted)); padding: 0.125rem 0.375rem; border-radius: 0.375rem; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.875rem; color: hsl(var(--foreground));">${escapedText}</code>`;
   }
   
   if (isStrikethrough) {
-    text = `<del style="text-decoration: line-through;">${text}</del>`;
+    text = `<del style="text-decoration: line-through;">${escapedText}</del>`;
+  } else if (isUnderline) {
+    text = `<u style="text-decoration: underline;">${escapedText}</u>`;
+  } else if (isItalic) {
+    text = `<em style="font-style: italic;">${escapedText}</em>`;
+  } else if (isBold) {
+    text = `<strong style="font-weight: 700;">${escapedText}</strong>`;
+  } else {
+    text = escapedText;
   }
   
-  if (isUnderline) {
-    text = `<u style="text-decoration: underline;">${text}</u>`;
-  }
-  
-  if (isItalic) {
-    text = `<em style="font-style: italic;">${text}</em>`;
-  }
-  
-  if (isBold) {
-    text = `<strong style="font-weight: 700;">${text}</strong>`;
+  // Apply nested formatting (order matters - apply inner formatting first)
+  if (isBold && isItalic) {
+    text = `<strong style="font-weight: 700;"><em style="font-style: italic;">${escapedText}</em></strong>`;
+  } else if (isBold && isUnderline) {
+    text = `<strong style="font-weight: 700;"><u style="text-decoration: underline;">${escapedText}</u></strong>`;
+  } else if (isItalic && isUnderline) {
+    text = `<em style="font-style: italic;"><u style="text-decoration: underline;">${escapedText}</u></em>`;
   }
   
   return text;

@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   try {
     const { supabase, user } = await getAuthedClient(request)
     if (!supabase || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
 
     const formData = await request.formData()
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (!file || !bucket) {
       return NextResponse.json({ 
+        success: false,
         error: "Missing required fields: file, bucket" 
       }, { status: 400 })
     }
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
     if (!['post-images', 'post-videos', 'event-images', 'magazine-images'].includes(bucket)) {
       if (!entityId || !entityType) {
         return NextResponse.json({ 
+          success: false,
           error: "Missing required fields: entityId, entityType" 
         }, { status: 400 })
       }
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
     // Validate file
     const validation = validateFile(file, bucket)
     if (!validation.valid) {
-      return NextResponse.json({ error: validation.error }, { status: 400 })
+      return NextResponse.json({ success: false, error: validation.error }, { status: 400 })
     }
 
     // Check permissions based on entity type
@@ -166,7 +168,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!hasPermission) {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
+      return NextResponse.json({ success: false, error: "Insufficient permissions" }, { status: 403 })
     }
 
     // Generate unique filename
@@ -181,16 +183,15 @@ export async function POST(request: NextRequest) {
     // Upload to Supabase Storage
     console.log("Attempting upload to bucket:", bucket, "with fileName:", fileName)
     
-    // For event images, use admin client to bypass RLS policies
+    // For event images, avatars, and post media, use admin client to bypass RLS policies if needed
     let uploadClient = supabase
-    if (bucket === 'event-images') {
+    if (bucket === 'event-images' || bucket === 'avatars' || bucket === 'post-images' || bucket === 'post-videos') {
       const adminClient = createSupabaseAdmin()
       if (adminClient) {
         uploadClient = adminClient
-        console.log("Using admin client for event images")
+        console.log(`Using admin client for ${bucket}`)
       } else {
-        console.error("Admin client not available for event images - this will cause RLS errors")
-        return NextResponse.json({ error: "Storage service not available" }, { status: 500 })
+        console.warn(`Admin client not available for ${bucket} - using regular client`)
       }
     }
     
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
       .upload(fileName, fileBuffer, {
         contentType: file.type,
         cacheControl: '3600',
-        upsert: false
+        upsert: true // Allow overwriting existing files
       })
 
     if (uploadError) {
@@ -209,15 +210,19 @@ export async function POST(request: NextRequest) {
         statusCode: (uploadError as any).statusCode,
         error: (uploadError as any).error
       })
-      return NextResponse.json({ error: uploadError.message }, { status: 400 })
+      return NextResponse.json({ 
+        success: false,
+        error: uploadError.message 
+      }, { status: 400 })
     }
 
     console.log("Upload data received:", uploadData)
 
-    // Get public URL
+    // Get public URL - use the path from uploadData, not fileName
+    const filePath = uploadData.path || fileName
     const { data: { publicUrl } } = uploadClient.storage
       .from(bucket)
-      .getPublicUrl(fileName)
+      .getPublicUrl(filePath)
 
     console.log("Upload successful:", {
       bucket,

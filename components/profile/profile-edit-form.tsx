@@ -122,35 +122,76 @@ export function ProfileEditForm({ user, onSave, onCancel }: ProfileEditFormProps
       }
 
       // Upload to Supabase Storage instead of base64
+      // Use 'avatars' bucket for both avatar and banner (or create separate bucket for banners)
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('bucket', 'user-images')
+      formData.append('bucket', type === 'avatar' ? 'avatars' : 'avatars') // Using avatars for both for now
       formData.append('entityId', user.id)
       formData.append('entityType', 'user')
+
+      console.log('Uploading file:', { 
+        fileName: file.name, 
+        fileSize: file.size, 
+        fileType: file.type,
+        bucket: 'avatars',
+        entityId: user.id,
+        entityType: 'user'
+      })
 
       const result = await execute('/api/upload', {
         method: 'POST',
         body: formData,
       })
 
+      console.log('Upload result:', result)
+
       if (result.success && result.data?.publicUrl) {
+        const imageUrl = result.data.publicUrl
         setFormData(prev => ({
           ...prev,
-          [type === 'avatar' ? 'avatarUrl' : 'bannerUrl']: result.data.publicUrl
+          [type === 'avatar' ? 'avatarUrl' : 'bannerUrl']: imageUrl
         }))
         
-        toast({
-          title: "File uploaded",
-          description: `${type === 'avatar' ? 'Avatar' : 'Banner'} image uploaded successfully.`,
-        })
+        // Automatically save to database after upload
+        try {
+          const updateResult = await execute('/api/users/me', {
+            method: 'PATCH',
+            body: JSON.stringify({
+              [type === 'avatar' ? 'avatarUrl' : 'bannerUrl']: imageUrl
+            }),
+          })
+          
+          if (updateResult.success) {
+            toast({
+              title: "File uploaded",
+              description: `${type === 'avatar' ? 'Avatar' : 'Banner'} image uploaded and saved successfully.`,
+            })
+            // Refresh user data if onSave callback is available
+            if (onSave) {
+              onSave({ ...formData, [type === 'avatar' ? 'avatarUrl' : 'bannerUrl']: imageUrl } as any)
+            }
+          } else {
+            throw new Error(updateResult.error || 'Failed to save to database')
+          }
+        } catch (dbError) {
+          console.error('Database save error:', dbError)
+          toast({
+            title: "Uploaded but not saved",
+            description: "Image uploaded but failed to save to database. Please try saving again.",
+            variant: "destructive",
+          })
+        }
       } else {
-        throw new Error(result.error || 'Upload failed')
+        const errorMessage = result.error || 'Upload failed'
+        console.error('Upload failed:', errorMessage, result)
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error('File upload error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload image. Please try again.'
       toast({
         title: "Upload failed",
-        description: "Failed to upload image. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       })
     }

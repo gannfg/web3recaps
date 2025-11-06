@@ -29,14 +29,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
-  Newspaper
+  Newspaper,
+  Diamond
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import headObject from './head_object.png';
 import headText from './head_text.png';
 import { AdminArticleInput } from './admin-article-input';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface NewsNewspaperLayoutProps {
   articles: NewsArticle[];
@@ -57,6 +58,8 @@ export function NewsNewspaperLayout({
 }: NewsNewspaperLayoutProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
+  const showcaseScrollRef = useRef<HTMLDivElement>(null);
+  const [showcaseAutoScroll, setShowcaseAutoScroll] = useState(true);
   
   useEffect(() => {
     if (!api) return;
@@ -66,6 +69,47 @@ export function NewsNewspaperLayout({
       setCurrent(api.selectedScrollSnap());
     });
   }, [api]);
+
+  // Auto-slide carousel for featured articles showcase
+  useEffect(() => {
+    if (!showcaseAutoScroll || !showcaseScrollRef.current) return;
+
+    const scrollContainer = showcaseScrollRef.current;
+    const scrollWidth = scrollContainer.scrollWidth;
+    const clientWidth = scrollContainer.clientWidth;
+    
+    // Only auto-scroll if content overflows
+    if (scrollWidth <= clientWidth) return;
+
+    let scrollPosition = 0;
+    const scrollSpeed = 1; // pixels per frame
+    const scrollInterval = 30; // milliseconds
+
+    const autoScroll = setInterval(() => {
+      scrollPosition += scrollSpeed;
+      
+      // Reset to start when reaching the end
+      if (scrollPosition >= scrollWidth - clientWidth) {
+        scrollPosition = 0;
+        scrollContainer.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        scrollContainer.scrollTo({ left: scrollPosition, behavior: 'auto' });
+      }
+    }, scrollInterval);
+
+    // Pause on hover
+    const handleMouseEnter = () => setShowcaseAutoScroll(false);
+    const handleMouseLeave = () => setShowcaseAutoScroll(true);
+
+    scrollContainer.addEventListener('mouseenter', handleMouseEnter);
+    scrollContainer.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      clearInterval(autoScroll);
+      scrollContainer.removeEventListener('mouseenter', handleMouseEnter);
+      scrollContainer.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [showcaseAutoScroll]);
 
   // Get content by layout position - these should NEVER change based on category filter
   const featuredMain = articles.find(article => article.layout_position === 'featured_main') || 
@@ -95,6 +139,36 @@ export function NewsNewspaperLayout({
   const filteredArticles = articles.filter(article => 
     !activeCategory || article.category_id === activeCategory
   );
+
+  // Get featured articles for showcase
+  const featuredArticles = articles
+    .filter(article => article.is_featured && article.status === 'published')
+    .sort((a, b) => {
+      const dateA = new Date(a.published_at || a.created_at).getTime();
+      const dateB = new Date(b.published_at || b.created_at).getTime();
+      return dateB - dateA; // Most recent first
+    });
+
+  // Color palette for card backgrounds (matching NFT card style)
+  const cardBackgrounds = [
+    'bg-gradient-to-br from-purple-200 to-purple-300', // Light purple
+    'bg-gradient-to-br from-amber-100 to-amber-200', // Light beige/tan
+    'bg-gradient-to-br from-cyan-200 to-teal-300', // Teal/light blue-green
+    'bg-gradient-to-br from-orange-100 to-orange-200', // Light brown/tan
+    'bg-gradient-to-br from-gray-200 to-gray-300', // Light gray
+    'bg-gradient-to-br from-blue-200 to-indigo-300', // Light blue/purple
+    'bg-gradient-to-br from-pink-200 to-rose-300', // Pink
+    'bg-gradient-to-br from-green-200 to-emerald-300', // Green
+  ];
+
+  // Helper to get category name
+  const getCategoryName = (article: NewsArticle): string => {
+    if (article.category) {
+      return article.category.name;
+    }
+    const category = categories.find(cat => cat.id === article.category_id);
+    return category?.name || 'Uncategorized';
+  };
 
   if (loading) {
     return (
@@ -127,7 +201,7 @@ export function NewsNewspaperLayout({
       /> */}
       
       {/* Content */}
-      <div className="relative z-10 w-full max-w-6xl mx-auto overflow-hidden px-4 md:px-6">
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 md:px-6">
       {/* Hero Banner Section - Two Panel Layout */}
       <div className="mb-12 md:mb-16">
         <div className="flex flex-col md:flex-row gap-6 md:gap-8">
@@ -525,19 +599,7 @@ export function NewsNewspaperLayout({
             ].filter(Boolean);
 
             if (featuredContent.length === 0) {
-              return (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="h-80 bg-blue-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">TEXT BLOCK</span>
-              </div>
-                  <div className="h-80 bg-red-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">MAIN IMAGE</span>
-                  </div>
-                  <div className="h-80 bg-red-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">RIGHT IMAGE</span>
-                  </div>
-                </div>
-              );
+              return null;
             }
 
             return (
@@ -679,6 +741,119 @@ export function NewsNewspaperLayout({
           })()}
         </div>
 
+        {/* Featured Articles Showcase */}
+        {featuredArticles.length > 0 && (
+          <div className="mb-12 md:mb-16 pt-8 overflow-visible">
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
+              Featured Articles
+            </h2>
+            <div 
+              ref={showcaseScrollRef}
+              className="flex gap-4 overflow-x-auto overflow-y-visible py-4 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overflowY: 'visible' }}
+            >
+              {featuredArticles.map((article, index) => {
+                const articleUrl = `/news/${article.slug}`;
+                const bgColor = cardBackgrounds[index % cardBackgrounds.length];
+                const articleNumber = `#${String(index + 1).padStart(3, '0')}`;
+                const viewCount = (article.view_count || 0).toLocaleString();
+                const categoryName = getCategoryName(article);
+                
+                return (
+                  <Link
+                    key={article.id}
+                    href={articleUrl}
+                    className={`flex-shrink-0 w-[280px] h-[400px] rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 group cursor-pointer snap-start relative ${bgColor}`}
+                    style={{
+                      transform: 'translateY(0) scale(1)',
+                      zIndex: 1,
+                      overflow: 'visible',
+                    }}
+                    onMouseEnter={(e) => {
+                      const cardEl = e.currentTarget;
+                      cardEl.style.transform = 'translateY(-12px) scale(1.03)';
+                      cardEl.style.zIndex = '50';
+                      cardEl.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      const cardEl = e.currentTarget;
+                      cardEl.style.transform = 'translateY(0) scale(1)';
+                      cardEl.style.zIndex = '1';
+                      cardEl.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+                    }}
+                  >
+                    {/* Background Image - Fills entire card */}
+                    <div className="absolute inset-0 rounded-2xl overflow-hidden">
+                      {article.featured_image_url ? (
+                        <>
+                          <Image
+                            src={article.featured_image_url}
+                            alt={article.title}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                          {/* Overlay gradient for text readability */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                          <span className="text-6xl font-bold text-gray-800">
+                            {article.title.charAt(0)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content Container */}
+                    <div className="relative h-full flex flex-col justify-between p-5 z-10">
+                      {/* Top Section */}
+                      <div className="flex items-start justify-between">
+                        {/* Article Number */}
+                        <span className="text-xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                          {articleNumber}
+                        </span>
+                      </div>
+
+                      {/* Bottom Section */}
+                      <div className="space-y-3">
+                        {/* Article Title */}
+                        <h4 className="text-sm font-bold text-white line-clamp-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-tight">
+                          {article.title}
+                        </h4>
+
+                        {/* Metadata Row */}
+                        <div className="flex items-center justify-between">
+                          {/* View Count with Diamond Icon */}
+                          <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                            <Diamond className="h-3.5 w-3.5 text-white" fill="currentColor" />
+                            <span className="text-sm font-semibold text-white">
+                              {viewCount}
+                            </span>
+                          </div>
+
+                          {/* Category with Heart Icon */}
+                          <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                            <Heart className="h-3.5 w-3.5 text-white" fill="currentColor" />
+                            <span className="text-sm font-semibold text-white">
+                              {categoryName}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* All Articles - Vertical List */}
+        <div className="mb-12 md:mb-16 pt-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-8">
+            {activeCategory ? `${categories.find(c => c.id === activeCategory)?.name} Articles` : 'All Articles'}
+          </h2>
+
         {/* Category Dropdown */}
         <div className="w-full bg-card border rounded-lg mb-8">
           <div className="p-4">
@@ -717,12 +892,6 @@ export function NewsNewspaperLayout({
             </div>
           </div>
         </div>
-
-        {/* All Articles - Vertical List */}
-        <div className="mb-12 md:mb-16 pt-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-8">
-            {activeCategory ? `${categories.find(c => c.id === activeCategory)?.name} Articles` : 'All Articles'}
-          </h2>
           
           {/* Vertical List View */}
           <div className="space-y-6">

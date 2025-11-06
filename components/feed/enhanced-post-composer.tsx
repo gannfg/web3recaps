@@ -140,9 +140,13 @@ export function EnhancedPostComposer({ onPostCreated, placeholder = "What's happ
   }
 
   const handleImageUpload = async (files: FileList) => {
+    if (!files || files.length === 0) return
+    
     setIsUploading(true)
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
+        console.log('Uploading image:', file.name, file.size, file.type)
+        
         const formData = new FormData()
         formData.append('file', file)
         formData.append('bucket', 'post-images')
@@ -152,13 +156,20 @@ export function EnhancedPostComposer({ onPostCreated, placeholder = "What's happ
           body: formData,
         })
         
+        console.log('Upload result:', result)
+        
         if (result.success && result.data?.publicUrl) {
+          console.log('Upload successful, URL:', result.data.publicUrl)
           return result.data.publicUrl
         }
-        throw new Error(result.error || 'Upload failed')
+        
+        const errorMsg = result.error || result.data?.error || 'Upload failed'
+        console.error('Upload failed:', errorMsg, result)
+        throw new Error(errorMsg)
       })
 
       const urls = await Promise.all(uploadPromises)
+      console.log('All uploads successful, URLs:', urls)
       setSelectedImages(prev => [...prev, ...urls])
       
       toast({
@@ -178,11 +189,15 @@ export function EnhancedPostComposer({ onPostCreated, placeholder = "What's happ
   }
 
   const handleVideoUpload = async (files: FileList) => {
+    if (!files || files.length === 0) return
+    
     setIsUploading(true)
     try {
       // For now, we'll handle video uploads the same as images
       // In production, you might want to use a video-specific service
       const uploadPromises = Array.from(files).map(async (file) => {
+        console.log('Uploading video:', file.name, file.size, file.type)
+        
         const formData = new FormData()
         formData.append('file', file)
         formData.append('bucket', 'post-videos')
@@ -192,13 +207,20 @@ export function EnhancedPostComposer({ onPostCreated, placeholder = "What's happ
           body: formData,
         })
         
+        console.log('Upload result:', result)
+        
         if (result.success && result.data?.publicUrl) {
+          console.log('Upload successful, URL:', result.data.publicUrl)
           return result.data.publicUrl
         }
-        throw new Error(result.error || 'Upload failed')
+        
+        const errorMsg = result.error || result.data?.error || 'Upload failed'
+        console.error('Upload failed:', errorMsg, result)
+        throw new Error(errorMsg)
       })
 
       const urls = await Promise.all(uploadPromises)
+      console.log('All uploads successful, URLs:', urls)
       setSelectedVideos(prev => [...prev, ...urls])
       
       toast({
@@ -276,7 +298,7 @@ export function EnhancedPostComposer({ onPostCreated, placeholder = "What's happ
                          <div className="relative">
                            <Textarea
                              placeholder={placeholder}
-                             className="w-full min-h-[120px] resize-none border border-white rounded-lg p-4 text-base focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white bg-black text-white placeholder-gray-400"
+                             className="w-full min-h-[120px] resize-none border border-gray-200 rounded-lg p-4 text-base focus-visible:ring-1 focus-visible:ring-gray-300 focus-visible:border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-500"
                              {...field}
                              onFocus={() => setIsExpanded(true)}
                              disabled={isUploading}
@@ -408,7 +430,15 @@ export function EnhancedPostComposer({ onPostCreated, placeholder = "What's happ
                   accept="image/*"
                   multiple
                   className="hidden"
-                  onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
+                  onChange={(e) => {
+                    const files = e.target.files
+                    if (files && files.length > 0) {
+                      console.log('Image files selected:', files.length)
+                      handleImageUpload(files)
+                    }
+                    // Reset input so same file can be selected again
+                    e.target.value = ''
+                  }}
                 />
                 
                 <input
@@ -417,7 +447,15 @@ export function EnhancedPostComposer({ onPostCreated, placeholder = "What's happ
                   accept="video/*"
                   multiple
                   className="hidden"
-                  onChange={(e) => e.target.files && handleVideoUpload(e.target.files)}
+                  onChange={(e) => {
+                    const files = e.target.files
+                    if (files && files.length > 0) {
+                      console.log('Video files selected:', files.length)
+                      handleVideoUpload(files)
+                    }
+                    // Reset input so same file can be selected again
+                    e.target.value = ''
+                  }}
                 />
 
                 {/* Removed expanded options - using simple X-style posts */}

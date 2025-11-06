@@ -1,7 +1,7 @@
 'use client';
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { $getSelection, $isRangeSelection } from 'lexical';
+import { $getRoot } from 'lexical';
 import { useEffect, useState } from 'react';
 
 interface PlaceholderProps {
@@ -15,11 +15,13 @@ export function Placeholder({ text }: PlaceholderProps) {
   useEffect(() => {
     const updateVisibility = () => {
       editor.getEditorState().read(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-          const anchorNode = selection.anchor.getNode();
-          const textContent = anchorNode.getTextContent();
-          setIsVisible(textContent === '');
+        try {
+          const root = $getRoot();
+          const textContent = root.getTextContent();
+          setIsVisible(textContent.trim() === '');
+        } catch (error) {
+          // Fallback: check if editor is empty
+          setIsVisible(true);
         }
       });
     };

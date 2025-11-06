@@ -64,7 +64,7 @@ export default function RootLayout({
               <MagazineBarWrapper />
             </Suspense> */}
 
-            <main className="min-h-screen bg-background pb-16 md:pb-0 relative">
+            <main className="min-h-screen bg-background pb-16 md:pb-0 relative pt-12">
               <div className="container mx-auto px-4 py-2 max-w-full overflow-x-hidden static">
                 {children}
               </div>

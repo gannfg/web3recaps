@@ -44,14 +44,21 @@ export function CommentModal({
   const [commentText, setCommentText] = useState("")
 
   const handleSubmitComment = async () => {
-    if (!commentText.trim() || !user) return
+    if (!commentText.trim()) {
+      toast.error("Comment cannot be empty")
+      return
+    }
+    
+    if (!user) {
+      toast.error("Please log in to comment")
+      return
+    }
 
     try {
       const result = await execute(`/api/posts/${postId}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": user.id,
         },
         body: JSON.stringify({
           content: commentText.trim(),
@@ -64,11 +71,12 @@ export function CommentModal({
         setCommentText("")
         toast.success("Comment added!")
       } else {
-        toast.error("Failed to add comment")
+        console.error('Comment error:', result.error)
+        toast.error(result.error || "Failed to add comment")
       }
     } catch (error) {
       console.error("Error adding comment:", error)
-      toast.error("Failed to add comment")
+      toast.error(error instanceof Error ? error.message : "Failed to add comment")
     }
   }
 
