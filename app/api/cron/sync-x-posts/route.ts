@@ -108,6 +108,12 @@ export async function GET(request: NextRequest) {
     // Process each tweet
     for (const tweet of tweets) {
       try {
+        // Skip replies (only sync original tweets)
+        if (tweet.referenced_tweets?.some((ref) => ref.type === 'replied_to')) {
+          skippedCount++
+          continue
+        }
+
         const cleanText = cleanTweetText(tweet)
         
         // Check if post already exists (prevent duplicates)

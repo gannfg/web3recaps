@@ -8,6 +8,10 @@ export interface XTweet {
   text: string
   author_id: string
   created_at: string
+  referenced_tweets?: Array<{
+    type: 'retweeted' | 'quoted' | 'replied_to'
+    id: string
+  }>
   attachments?: {
     media_keys?: string[]
   }
@@ -59,7 +63,7 @@ export async function fetchRecentTweets(
   const url = new URL('https://api.twitter.com/2/users/' + userId + '/tweets')
   
   const params: Record<string, string> = {
-    'tweet.fields': 'id,text,created_at,attachments,entities',
+    'tweet.fields': 'id,text,created_at,attachments,entities,referenced_tweets',
     'expansions': 'attachments.media_keys,author_id',
     'media.fields': 'type,url,preview_image_url',
     'user.fields': 'id,username,name',
