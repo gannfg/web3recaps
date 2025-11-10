@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     const bearerToken = process.env.X_BEARER_TOKEN
     const xUserId = process.env.X_USER_ID
-    const xUsername = process.env.X_USERNAME || 'web3recapio'
+    const xUsername = process.env.X_USERNAME || 'Web3Recapio'
 
     // Allow specifying limit via query param (default 10)
     const { searchParams } = new URL(request.url)
@@ -51,11 +51,16 @@ export async function GET(request: NextRequest) {
     let userId = xUserId
     if (!userId) {
       console.log('Fetching user ID from username:', xUsername)
-      userId = await getUserIdByUsername(bearerToken, xUsername)
-      if (!userId) {
+      const fetchedUserId = await getUserIdByUsername(bearerToken, xUsername)
+      if (!fetchedUserId) {
         return NextResponse.json({ error: 'Failed to get X user ID' }, { status: 500 })
       }
+      userId = fetchedUserId
       console.log('Found user ID:', userId)
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: 'X user ID unavailable' }, { status: 500 })
     }
 
     const supabase = createSupabaseAdmin()
