@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { useSession } from '@/store/useSession'
 import { PostCard } from '@/components/posts/post-card'
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import type { Post, User } from '@/lib/types'
+import type { ApiResponse, Post, User } from '@/lib/types'
 
 export default function FeedPage() {
   const { execute } = useApi()
@@ -21,19 +21,49 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
   const [offset, setOffset] = useState(0)
+  const previousUserRef = useRef<User | null>(null)
 
-  useEffect(() => {
-    loadPosts()
-  }, [])
+  // Define loadAuthors first so it can be used in useEffects
+  const loadAuthors = useCallback(async (authorIds: string[]) => {
+    try {
+      const results = await Promise.allSettled<ApiResponse<User>>(
+        authorIds.map(id => {
+          // If this is the current user, use session data instead of fetching
+          if (user && id === user.id) {
+            return Promise.resolve<ApiResponse<User>>({
+              success: true,
+              data: user,
+            })
+          }
+          return execute(`/api/users/${id}`) as Promise<ApiResponse<User>>
+        })
+      )
+      
+      const newAuthors: Record<string, User> = {}
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value?.success && result.value.data) {
+          newAuthors[authorIds[index]] = result.value.data
+        }
+      })
+      
+      setAuthors(prev => ({ ...prev, ...newAuthors }))
+    } catch (error) {
+      console.error('Failed to load authors:', error)
+    }
+  }, [user, execute])
+
+  const offsetRef = useRef(0)
 
   const loadPosts = async (loadMore = false) => {
     if (!loadMore) {
       setLoading(true)
+      offsetRef.current = 0
       setOffset(0)
     }
 
     try {
-      const result = await execute(`/api/posts?limit=20&offset=${loadMore ? offset : 0}`)
+      const currentOffset = loadMore ? offsetRef.current : 0
+      const result = await execute(`/api/posts?limit=20&offset=${currentOffset}`)
       
       if (result.success && result.data?.posts) {
         const newPosts: Post[] = result.data.posts as Post[]
@@ -43,7 +73,9 @@ export default function FeedPage() {
           setPosts(newPosts)
         }
         setHasMore(result.data.hasMore || false)
-        setOffset(loadMore ? offset + newPosts.length : newPosts.length)
+        const newOffset = loadMore ? offsetRef.current + newPosts.length : newPosts.length
+        offsetRef.current = newOffset
+        setOffset(newOffset)
 
         // Load authors for all posts
         const authorIds = [...new Set(newPosts.map(p => p.authorId).filter((id): id is string => Boolean(id)))]
@@ -58,24 +90,55 @@ export default function FeedPage() {
     }
   }
 
-  const loadAuthors = async (authorIds: string[]) => {
-    try {
-      const results = await Promise.allSettled(
-        authorIds.map(id => execute(`/api/users/${id}`))
-      )
-      
-      const newAuthors: Record<string, User> = {}
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value.success && result.value.data) {
-          newAuthors[authorIds[index]] = result.value.data
-        }
-      })
-      
-      setAuthors(prev => ({ ...prev, ...newAuthors }))
-    } catch (error) {
-      console.error('Failed to load authors:', error)
+  useEffect(() => {
+    loadPosts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Watch for changes to the current user's profile and refresh author data
+  useEffect(() => {
+    if (!user) {
+      previousUserRef.current = null
+      return
     }
-  }
+
+    const previousUser = previousUserRef.current
+    
+    // Check if user profile data has changed (avatar, displayName, etc.)
+    if (previousUser && previousUser.id === user.id) {
+      const profileChanged = 
+        previousUser.avatarUrl !== user.avatarUrl ||
+        previousUser.displayName !== user.displayName ||
+        previousUser.bio !== user.bio ||
+        previousUser.rank !== user.rank
+
+      if (profileChanged) {
+        // Refresh author data for the current user's posts
+        setAuthors(prev => ({
+          ...prev,
+          [user.id]: user
+        }))
+      }
+    }
+
+    previousUserRef.current = user
+  }, [user])
+
+  // Refresh author data when page becomes visible (to catch changes from other tabs)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && posts.length > 0) {
+        // Refresh author data for all posts
+        const authorIds = [...new Set(posts.map(p => p.authorId).filter((id): id is string => Boolean(id)))]
+        if (authorIds.length > 0) {
+          loadAuthors(authorIds)
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [posts, loadAuthors])
 
   const handleLoadMore = () => {
     loadPosts(true)
