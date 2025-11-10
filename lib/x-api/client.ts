@@ -35,6 +35,8 @@ export interface XUser {
   id: string
   username: string
   name: string
+  profile_image_url?: string
+  description?: string
 }
 
 export interface XTweetsResponse {
@@ -66,7 +68,7 @@ export async function fetchRecentTweets(
     'tweet.fields': 'id,text,created_at,attachments,entities,referenced_tweets',
     'expansions': 'attachments.media_keys,author_id',
     'media.fields': 'type,url,preview_image_url',
-    'user.fields': 'id,username,name',
+    'user.fields': 'id,username,name,profile_image_url,description',
     'max_results': String(maxResults),
   }
 
@@ -95,14 +97,14 @@ export async function fetchRecentTweets(
 }
 
 /**
- * Get user ID from username
+ * Get user profile by username
  */
-export async function getUserIdByUsername(
+export async function getUserProfileByUsername(
   bearerToken: string,
   username: string
-): Promise<string | null> {
+): Promise<XUser | null> {
   const url = new URL(`https://api.twitter.com/2/users/by/username/${username}`)
-  url.searchParams.append('user.fields', 'id')
+  url.searchParams.append('user.fields', 'id,username,name,profile_image_url,description')
 
   const response = await fetch(url.toString(), {
     method: 'GET',
@@ -118,7 +120,34 @@ export async function getUserIdByUsername(
   }
 
   const data = await response.json()
-  return data.data?.id || null
+  return data.data || null
+}
+
+/**
+ * Get user profile by user ID
+ */
+export async function getUserProfileById(
+  bearerToken: string,
+  userId: string
+): Promise<XUser | null> {
+  const url = new URL(`https://api.twitter.com/2/users/${userId}`)
+  url.searchParams.append('user.fields', 'id,username,name,profile_image_url,description')
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${bearerToken}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`X API error: ${response.status} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  return data.data || null
 }
 
 /**

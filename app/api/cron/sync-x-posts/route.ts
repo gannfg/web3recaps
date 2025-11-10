@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase/server'
 import {
   fetchRecentTweets,
-  getUserIdByUsername,
+  getUserProfileByUsername,
+  getUserProfileById,
   extractMediaFromTweet,
   extractUrlsFromTweet,
   cleanTweetText,
+  type XUser,
 } from '@/lib/x-api/client'
 
 /**
@@ -47,16 +49,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'X_BEARER_TOKEN not configured' }, { status: 500 })
     }
 
-    // Get user ID if not provided
+    // Get user ID/profile if not provided
     let userId = xUserId
+    let userProfile: XUser | null = null
     if (!userId) {
       console.log('Fetching user ID from username:', xUsername)
-      const fetchedUserId = await getUserIdByUsername(bearerToken, xUsername)
-      if (!fetchedUserId) {
-        return NextResponse.json({ error: 'Failed to get X user ID' }, { status: 500 })
+      const profile = await getUserProfileByUsername(bearerToken, xUsername)
+      if (!profile) {
+        return NextResponse.json({ error: 'Failed to get X user profile' }, { status: 500 })
       }
-      userId = fetchedUserId
+      userId = profile.id
+      userProfile = profile
       console.log('Found user ID:', userId)
+    }
+
+    if (userId && !userProfile) {
+      try {
+        userProfile = await getUserProfileById(bearerToken, userId)
+      } catch (profileError) {
+        console.warn('Unable to fetch X user profile by ID:', profileError)
+      }
     }
 
     if (!userId) {
@@ -69,7 +81,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get or create X system user
-    const xSystemUserId = await getOrCreateXUser(supabase)
+    const xSystemUserId = await getOrCreateXUser(supabase, userProfile || undefined)
     if (!xSystemUserId) {
       return NextResponse.json({ error: 'Failed to get or create X system user' }, { status: 500 })
     }
@@ -90,6 +102,13 @@ export async function GET(request: NextRequest) {
       undefined, // sinceId - could use lastPost to only fetch new ones
       maxResults
     )
+
+    const profileFromTweets = tweetsResponse.includes?.users?.find((u) => u.id === userId)
+    if (profileFromTweets) {
+      await updateXUserProfile(supabase, xSystemUserId, profileFromTweets)
+    } else if (userProfile) {
+      await updateXUserProfile(supabase, xSystemUserId, userProfile)
+    }
 
     const tweets = tweetsResponse.data?.slice(0, maxResults) ?? []
 
@@ -195,33 +214,106 @@ export async function GET(request: NextRequest) {
   }
 }
 
+function buildProfileFields(profile?: XUser, existingLinks?: Record<string, any>) {
+  if (!profile) {
+    return {}
+  }
+
+  const updates: Record<string, any> = {}
+
+  if (profile.name) {
+    updates.display_name = profile.name
+  }
+
+  if (profile.description) {
+    updates.bio = profile.description
+  }
+
+  if (profile.profile_image_url) {
+    updates.avatar_url = normalizeProfileImageUrl(profile.profile_image_url)
+  }
+
+  if (profile.username) {
+    updates.social_links = {
+      ...(existingLinks ?? {}),
+      twitter: `https://x.com/${profile.username}`,
+    }
+  }
+
+  return updates
+}
+
+function normalizeProfileImageUrl(url: string) {
+  if (!url) return url
+  return url.replace('_normal', '_400x400')
+}
+
+async function updateXUserProfile(
+  supabase: any,
+  userId: string,
+  profile: XUser,
+  existingLinks?: Record<string, any>
+) {
+  let links = existingLinks
+
+  if (!links) {
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('social_links')
+      .eq('id', userId)
+      .single()
+
+    links = userRecord?.social_links ?? undefined
+  }
+
+  const updates = buildProfileFields(profile, links)
+  if (Object.keys(updates).length === 0) {
+    return
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', userId)
+
+  if (error) {
+    console.error('Failed to update X user profile:', error)
+  }
+}
+
 /**
  * Get or create a system user for X posts
  */
-async function getOrCreateXUser(supabase: any): Promise<string | null> {
+async function getOrCreateXUser(supabase: any, profile?: XUser): Promise<string | null> {
   try {
     const xEmail = 'x@web3recap.io'
 
     // Try to find existing X system user
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id')
+      .select('id, social_links')
       .eq('email', xEmail)
       .single()
 
     if (existingUser) {
+      if (profile) {
+        await updateXUserProfile(supabase, existingUser.id, profile, existingUser.social_links)
+      }
       return existingUser.id
     }
+
+    const profileFields = buildProfileFields(profile)
 
     // Create new system user for X
     const { data: newUser, error } = await supabase
       .from('users')
       .insert({
         email: xEmail,
-        display_name: 'Web3Recap',
+        display_name: profileFields.display_name ?? 'Web3Recap',
         role: 'ADMIN',
-        bio: 'Official Web3Recap X account',
-        social_links: {
+        bio: profileFields.bio ?? 'Official Web3Recap X account',
+        avatar_url: profileFields.avatar_url ?? null,
+        social_links: profileFields.social_links ?? {
           twitter: 'https://x.com/Web3Recapio',
         },
         email_verified: true,
@@ -233,6 +325,10 @@ async function getOrCreateXUser(supabase: any): Promise<string | null> {
     if (error) {
       console.error('Error creating X user:', error)
       return null
+    }
+
+    if (profile) {
+      await updateXUserProfile(supabase, newUser.id, profile, profileFields.social_links)
     }
 
     return newUser.id
