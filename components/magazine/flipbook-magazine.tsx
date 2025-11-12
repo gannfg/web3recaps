@@ -393,8 +393,8 @@ export function FlipbookMagazine({ magazine, onClose }: FlipbookMagazineProps) {
       
       // Observe class changes on all pages
       const observePages = () => {
-        const allPages = bookEl.querySelectorAll('.st-page')
-        allPages.forEach((page) => {
+        const allPages = bookEl.querySelectorAll('.st-page') as NodeListOf<Element>
+        allPages.forEach((page: Element) => {
           observer?.observe(page, {
             attributes: true,
             attributeFilter: ['class']
