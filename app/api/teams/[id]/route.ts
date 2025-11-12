@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServer } from "@/lib/supabase/server"
+import { requireUser } from "@/lib/auth"
 
 async function getAuthedClient(request: NextRequest) {
   const supabase = createSupabaseServer()
@@ -142,12 +143,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // PATCH /api/teams/[id] - Update team
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { supabase } = await getAuthedClient(request)
-    if (!supabase) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
-
-    const { data: userRes, error: userErr } = await supabase.auth.getUser()
-    if (userErr || !userRes.user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
-    const userId = userRes.user.id
+    const { supabase, user } = await requireUser(request)
+    if (!supabase || !user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    const userId = user.id
 
     const teamId = params.id
     const body = await request.json()
@@ -236,12 +234,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 // DELETE /api/teams/[id] - Delete team
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { supabase } = await getAuthedClient(request)
-    if (!supabase) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
-
-    const { data: userRes, error: userErr } = await supabase.auth.getUser()
-    if (userErr || !userRes.user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
-    const userId = userRes.user.id
+    const { supabase, user } = await requireUser(request)
+    if (!supabase || !user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    const userId = user.id
 
     const teamId = params.id
 

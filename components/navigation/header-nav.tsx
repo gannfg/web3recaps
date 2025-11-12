@@ -10,6 +10,7 @@ import { useSession } from "@/store/useSession"
 import { cn } from "@/lib/utils"
 import { UserMenu } from "@/components/auth/user-menu"
 import Image from "next/image"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const navItems = [
   { href: "/", label: "News" },
@@ -66,6 +67,7 @@ export function HeaderNav() {
 
         {/* Right Side Actions */}
         <div className="flex items-center space-x-2">
+          <ThemeToggle />
           {user && <NotificationBell />}
           <UserMenu />
         </div>

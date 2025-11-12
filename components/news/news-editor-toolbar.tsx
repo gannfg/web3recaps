@@ -48,6 +48,7 @@ import {
   Image, 
   Video,
   Youtube,
+  AlertCircle,
   List,
   ListOrdered,
   Quote,
@@ -68,6 +69,15 @@ import {
 } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { useApi } from '@/hooks/use-api';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function ToolbarPlugin() {
   const [editor] = useLexicalComposerContext();
@@ -83,6 +93,8 @@ export function ToolbarPlugin() {
   const [isMark, setIsMark] = useState(false);
   const [blockType, setBlockType] = useState('paragraph');
   const [isList, setIsList] = useState(false);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const updateToolbar = useCallback(() => {
     editor.getEditorState().read(() => {
@@ -260,11 +272,13 @@ export function ToolbarPlugin() {
             }
           });
         } else {
-          alert('Failed to upload image: ' + (result.error || 'Unknown error'));
+          setErrorMessage(result.error || 'Unknown error occurred');
+          setErrorDialogOpen(true);
         }
       } catch (error) {
         console.error('Upload error:', error);
-        alert('Failed to upload image. Please try again.');
+        setErrorMessage('Failed to upload image. Please try again.');
+        setErrorDialogOpen(true);
       }
     };
     input.click();
@@ -305,11 +319,13 @@ export function ToolbarPlugin() {
             root.append(linkNode);
           });
         } else {
-          alert('Failed to upload video: ' + (result.error || 'Unknown error'));
+          setErrorMessage(result.error || 'Unknown error occurred');
+          setErrorDialogOpen(true);
         }
       } catch (error) {
         console.error('Upload error:', error);
-        alert('Failed to upload video. Please try again.');
+        setErrorMessage('Failed to upload video. Please try again.');
+        setErrorDialogOpen(true);
       }
     };
     input.click();
@@ -350,6 +366,7 @@ export function ToolbarPlugin() {
   };
 
   return (
+    <>
     <div className="flex flex-wrap items-center gap-1.5 p-2 border-b bg-muted/30">
       {/* Undo/Redo */}
       <div className="flex items-center gap-0.5">
@@ -574,6 +591,36 @@ export function ToolbarPlugin() {
         </Button>
       </div>
     </div>
+
+    {/* Error Dialog */}
+    <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+      <AlertDialogContent className="sm:max-w-md">
+        <AlertDialogHeader className="text-left">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 shadow-lg">
+              <AlertCircle className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <AlertDialogTitle className="text-xl font-semibold leading-tight">
+                Upload failed
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm leading-relaxed text-muted-foreground">
+                {errorMessage || 'An unexpected error occurred. Please try again.'}
+              </AlertDialogDescription>
+            </div>
+          </div>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="sm:justify-end gap-2 pt-4">
+          <AlertDialogAction 
+            onClick={() => setErrorDialogOpen(false)}
+            className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white shadow-sm"
+          >
+            Close
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
   );
 }
 

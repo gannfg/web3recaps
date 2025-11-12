@@ -6,7 +6,7 @@ import { useUserProfile } from "@/hooks/use-user-profile"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { User, LogOut, FileText, Edit3, Shield, BookOpen } from "lucide-react"
+import { User, LogOut, FileText, Edit3, Shield, BookOpen, Users, FolderOpen } from "lucide-react"
 
 export function UserMenu() {
   const { user, logout } = useSession()
@@ -81,6 +81,18 @@ export function UserMenu() {
           <Link href="/magazine" className="flex items-center">
             <BookOpen className="mr-2 h-4 w-4" />
             Magazine
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/teams" className="flex items-center">
+            <Users className="mr-2 h-4 w-4" />
+            Teams
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/projects" className="flex items-center">
+            <FolderOpen className="mr-2 h-4 w-4" />
+            Projects
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

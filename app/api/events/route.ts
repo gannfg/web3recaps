@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const skillLevel = searchParams.get('skillLevel');
     const upcoming = searchParams.get('upcoming');
     const limit = searchParams.get('limit');
+    const creator = searchParams.get('creator');
 
     let query = supabase
       .from('events')
@@ -32,6 +33,9 @@ export async function GET(request: NextRequest) {
       `)
       .eq('status', status);
 
+    if (creator) {
+      query = query.eq('creator_id', creator);
+    }
     // Filter by layout position
     if (layout_position) {
       query = query.eq('layout_position', layout_position);

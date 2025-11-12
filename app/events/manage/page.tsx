@@ -3,6 +3,11 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -66,6 +71,23 @@ export default function EventManagementPage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [showAttendees, setShowAttendees] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [eventDate, setEventDate] = useState("")
+  const [startTime, setStartTime] = useState("18:00")
+  const [endTime, setEndTime] = useState("20:00")
+  const [eventType, setEventType] = useState<Event["eventType"]>("meetup")
+  const [location, setLocation] = useState("TBD")
+  const [locationType, setLocationType] = useState<Event["locationType"]>("physical")
+  const [capacityType, setCapacityType] = useState<Event["capacityType"]>("limited")
+  const [maxAttendees, setMaxAttendees] = useState(50)
+  const [isPublic, setIsPublic] = useState(true)
+  const [skillLevel, setSkillLevel] = useState<Event["skillLevel"]>("all")
+  const [xpReward, setXpReward] = useState(20)
+  const [cost, setCost] = useState(0)
+  const [currency, setCurrency] = useState("USD")
 
   const loadEvents = async () => {
     if (!user) return
@@ -91,19 +113,17 @@ export default function EventManagementPage() {
         setStats(eventStats)
 
         // Load bookings for each event
-        const bookingPromises = result.data.events.map((event: Event) => 
-          execute(`/api/events/${event.id}/attendees`)
-        )
-        const bookingResults = await Promise.all(bookingPromises)
+        const eventIds: string[] = result.data.events.map((e: Event) => e.id)
+        const attendeePromises = eventIds.map((id) => execute(`/api/events/${id}/attendees`))
+        const attendeeResults = await Promise.all(attendeePromises)
         
         const bookingsData: Record<string, Booking[]> = {}
         const attendeesData: Record<string, AttendeeData[]> = {}
         
-        bookingResults.forEach((result, index) => {
-          if (result.success && result.data) {
-            const eventId = result.data.events[index].id
-            bookingsData[eventId] = result.data.bookings || []
-            attendeesData[eventId] = result.data.attendees || []
+        attendeeResults.forEach((res, index) => {
+          if (res.success && res.data) {
+            const eventId = eventIds[index]
+            attendeesData[eventId] = res.data.attendees || []
           }
         })
         
@@ -123,6 +143,83 @@ export default function EventManagementPage() {
   useEffect(() => {
     loadEvents()
   }, [user])
+
+  const handleCreateEvent = async () => {
+    if (!user) return
+    if (!title.trim() || !eventDate || !startTime || !endTime) {
+      toast({
+        title: "Missing fields",
+        description: "Title, date, start and end time are required",
+        variant: "destructive",
+      })
+      return
+    }
+    setCreating(true)
+    try {
+      const payload = {
+        title: title.trim(),
+        description: description.trim() || null,
+        eventDate,
+        startTime,
+        endTime,
+        eventType,
+        location: location.trim() || "TBD",
+        locationType,
+        capacityType,
+        maxAttendees,
+        skillLevel,
+        xpReward,
+        isPublic,
+        isRecurring: false,
+        isFeatured: false,
+        cost,
+        currency,
+        tags: [],
+      }
+      const result = await execute("/api/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user.id,
+        },
+        body: JSON.stringify(payload),
+      })
+      if (result.success) {
+        toast({ title: "Event created", description: "Your event has been created" })
+        setShowCreate(false)
+        setTitle("")
+        setDescription("")
+        setEventDate("")
+        setStartTime("18:00")
+        setEndTime("20:00")
+        setEventType("meetup")
+        setLocation("TBD")
+        setLocationType("physical")
+        setCapacityType("limited")
+        setMaxAttendees(50)
+        setIsPublic(true)
+        setSkillLevel("all")
+        setXpReward(20)
+        setCost(0)
+        setCurrency("USD")
+        loadEvents()
+      } else {
+        toast({
+          title: "Creation failed",
+          description: result.error || "Could not create event",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to create event",
+        variant: "destructive",
+      })
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const handleDeleteEvent = async (eventId: string) => {
     if (!user) return
@@ -241,10 +338,18 @@ export default function EventManagementPage() {
           <h1 className="text-3xl font-bold">Event Management</h1>
           <p className="text-muted-foreground">Manage your events and track attendance</p>
         </div>
-        <Button onClick={() => window.location.href = '/events'}>
-          <Calendar className="h-4 w-4 mr-2" />
-          View All Events
-        </Button>
+        <div className="flex items-center gap-2">
+          {user?.role === "Admin" && (
+            <Button onClick={() => setShowCreate(true)}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Create Event
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => window.location.href = '/events'}>
+            <Calendar className="h-4 w-4 mr-2" />
+            View All Events
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -513,6 +618,131 @@ export default function EventManagementPage() {
           }}
         />
       )}
+
+      {/* Create Event Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Create Event</DialogTitle>
+            <DialogDescription>Fill in the details and publish when ready.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Solana Builders Meetup" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eventType">Type</Label>
+              <Select value={eventType} onValueChange={(v) => setEventType(v as Event["eventType"])}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="meetup">Meetup</SelectItem>
+                  <SelectItem value="workshop">Workshop</SelectItem>
+                  <SelectItem value="hackathon">Hackathon</SelectItem>
+                  <SelectItem value="study_group">Study Group</SelectItem>
+                  <SelectItem value="1on1">1 on 1</SelectItem>
+                  <SelectItem value="conference">Conference</SelectItem>
+                  <SelectItem value="networking">Networking</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="social">Social</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eventDate">Date</Label>
+              <Input id="eventDate" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Start</Label>
+                <Input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endTime">End</Label>
+                <Input id="endTime" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="What is this event about?" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Obelisk Hub, Accra / Zoom / TBD" />
+            </div>
+            <div className="space-y-2">
+              <Label>Location Type</Label>
+              <Select value={locationType} onValueChange={(v) => setLocationType(v as Event["locationType"])}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="physical">Physical</SelectItem>
+                  <SelectItem value="online">Online</SelectItem>
+                  <SelectItem value="hybrid">Hybrid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Capacity</Label>
+              <Select value={capacityType} onValueChange={(v) => setCapacityType(v as Event["capacityType"])}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="limited">Limited</SelectItem>
+                  <SelectItem value="unlimited">Unlimited</SelectItem>
+                  <SelectItem value="invite_only">Invite Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maxAttendees">Max Attendees</Label>
+              <Input id="maxAttendees" type="number" min={1} value={maxAttendees} onChange={(e) => setMaxAttendees(parseInt(e.target.value || "0", 10))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Skill Level</Label>
+              <Select value={skillLevel} onValueChange={(v) => setSkillLevel(v as Event["skillLevel"])}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="xpReward">XP Reward</Label>
+              <Input id="xpReward" type="number" min={0} value={xpReward} onChange={(e) => setXpReward(parseInt(e.target.value || "0", 10))} />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Public
+                <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+              </Label>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cost">Cost</Label>
+              <Input id="cost" type="number" min={0} value={cost} onChange={(e) => setCost(parseFloat(e.target.value || "0"))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="currency">Currency</Label>
+              <Input id="currency" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button onClick={handleCreateEvent} disabled={creating}>
+              {creating ? "Creating..." : "Create Event"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

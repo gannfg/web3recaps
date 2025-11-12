@@ -37,6 +37,7 @@ import Image from 'next/image';
 import headObject from './head_object.png';
 import headText from './head_text.png';
 import { AdminArticleInput } from './admin-article-input';
+import { CryptoTicker } from './crypto-ticker';
 import { useState, useEffect, useRef } from 'react';
 
 interface NewsNewspaperLayoutProps {
@@ -204,17 +205,17 @@ export function NewsNewspaperLayout({
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 md:px-6">
       {/* Hero Banner Section - Two Panel Layout */}
       <div className="mb-12 md:mb-16">
-        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
           {/* Left Panel: Text and Buttons */}
-          <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col">
             {/* Red Rectangle Area: Large Heading Image */}
-            <div className="mb-8" style={{ marginTop: '120px' }}>
+            <div className="mb-1 md:mb-8 mt-2 md:mt-[120px] ml-[10px] md:ml-0">
               <Image
                 src={headText}
                 alt="Summarizing the most important update on WEB3"
                 width={700}
                 height={220}
-                className="w-full h-auto max-w-3x2"
+                className="w-full h-auto max-w-3x2 invert-on-dark"
                 priority
               />
             </div>
@@ -227,15 +228,13 @@ export function NewsNewspaperLayout({
 
           {/* Right Panel: Earth Image */}
           <div className="flex-1">
-            <div 
-              className="relative h-full min-h-[400px] md:min-h-[500px]"
-            >
+            <div className="relative h-full min-h-[220px] md:min-h-[500px]">
               {/* Earth/Object Image */}
               <Image
                 src={headObject}
                 alt="Earth night view"
                 fill
-                className="object-contain"
+                className="object-contain invert-on-dark"
                 priority
               />
             </div>
@@ -247,52 +246,62 @@ export function NewsNewspaperLayout({
       <div className="mb-2">
         {/* Mobile Hero - Single Column (hide on tablet/desktop) */}
         <div className="md:hidden">
-          <div className="bg-card rounded-xl p-4 text-center border">
-            {/* Prominent logo on mobile */}
-            <div className="flex items-center justify-center mb-2">
-              <Image
-                src="/logo.png"
-                alt="Web3 Recap"
-                width={320}
-                height={100}
-                className="h-24 w-auto object-contain"
-                priority
-              />
+          <div className="space-y-4">
+            <div className="bg-card rounded-2xl p-5 border shadow-sm">
+              {/* Prominent logo on mobile */}
+              <div className="flex items-center justify-center mb-6">
+                <Image
+                  src="/logo.png"
+                  alt="Web3 Recap"
+                  width={240}
+                  height={80}
+                  className="h-20 w-auto object-contain"
+                  priority
+                />
+              </div>
+
+              {/* Mobile Quick Links */}
+              <div className="grid grid-cols-2 gap-3 text-left">
+                <Link 
+                  href="/events" 
+                  className="rounded-xl border bg-muted/30 px-3 py-4 hover:bg-accent/40 transition-colors"
+                >
+                  <h3 className="text-sm font-semibold text-foreground">Events</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-tight">
+                    Discover community gatherings and IRL meetups.
+                  </p>
+                </Link>
+                <Link 
+                  href="/showcase" 
+                  className="rounded-xl border bg-muted/30 px-3 py-4 hover:bg-accent/40 transition-colors"
+                >
+                  <h3 className="text-sm font-semibold text-foreground">Showcase</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-tight">
+                    Explore the latest projects from builders.
+                  </p>
+                </Link>
+                <Link 
+                  href="/teams" 
+                  className="rounded-xl border bg-muted/30 px-3 py-4 hover:bg-accent/40 transition-colors"
+                >
+                  <h3 className="text-sm font-semibold text-foreground">Teams</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-tight">
+                    Find squads that are hiring or open for collabs.
+                  </p>
+                </Link>
+                <Link 
+                  href="/magazine" 
+                  className="rounded-xl border bg-muted/30 px-3 py-4 hover:bg-accent/40 transition-colors"
+                >
+                  <h3 className="text-sm font-semibold text-foreground">Magazine</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-tight">
+                    Dive into long-form features and deep analysis.
+                  </p>
+                </Link>
+              </div>
             </div>
-            
-            {/* Mobile Quick Links */}
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <Link 
-                href="/events" 
-                className="bg-muted rounded-lg p-2 text-center hover:bg-accent transition-colors"
-              >
-                <h3 className="text-sm font-bold text-foreground mb-0.5">Events</h3>
-                <p className="text-[10px] text-muted-foreground">Community gatherings</p>
-              </Link>
-              <Link 
-                href="/showcase" 
-                className="bg-muted rounded-lg p-2 text-center hover:bg-accent transition-colors"
-              >
-                <h3 className="text-sm font-bold text-foreground mb-0.5">Showcase</h3>
-                <p className="text-[10px] text-muted-foreground">Platform features</p>
-              </Link>
-              <Link 
-                href="/teams" 
-                className="bg-muted rounded-lg p-2 text-center hover:bg-accent transition-colors"
-              >
-                <h3 className="text-sm font-bold text-foreground mb-0.5">Teams</h3>
-                <p className="text-[10px] text-muted-foreground">Find collaborators</p>
-              </Link>
-              <Link 
-                href="/magazine" 
-                className="bg-muted rounded-lg p-2 text-center hover:bg-accent transition-colors"
-              >
-                <h3 className="text-sm font-bold text-foreground mb-0.5">Magazine</h3>
-                <p className="text-[10px] text-muted-foreground">Read articles</p>
-              </Link>
-            </div>
-            
-            {/* Status Indicators removed for cleaner mobile hero */}
+
+            <CryptoTicker />
           </div>
         </div>
 
@@ -301,168 +310,77 @@ export function NewsNewspaperLayout({
           <div className="max-w-6xl mx-auto">
             <div className="flex gap-4 relative">
               {/* Events Card */}
-              <Link 
-                href="/events" 
-                className="flex-1 group block"
-                onMouseEnter={(e) => {
-                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
-                  if (card) {
-                    card.style.transform = 'translateY(-12px) scale(1.03)'
-                    card.style.zIndex = '10'
-                    card.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
-                  if (card) {
-                    card.style.transform = 'translateY(0) scale(1)'
-                    card.style.zIndex = '1'
-                    card.style.boxShadow = ''
-                  }
-                }}
-              >
-                <Card 
-                  className="h-full bg-white border border-gray-200 text-gray-900 transition-all duration-300 ease-out cursor-pointer relative shadow-sm"
-                  style={{
-                    transform: 'translateY(0) scale(1)',
-                    zIndex: 1,
-                    willChange: 'transform'
+              {[
+                {
+                  href: "/events",
+                  title: "Events",
+                  description: "Discover upcoming events and join our community",
+                  icon: <Calendar className="h-5 w-5 mb-2 text-primary" />,
+                },
+                {
+                  href: "/showcase",
+                  title: "Showcase",
+                  description: "Explore our platform and community achievements",
+                  icon: <Trophy className="h-5 w-5 mb-2 text-primary" />,
+                },
+                {
+                  href: "/teams",
+                  title: "Teams",
+                  description: "Find collaborators and build amazing projects together",
+                  icon: <Users className="h-5 w-5 mb-2 text-primary" />,
+                },
+                {
+                  href: "/magazine",
+                  title: "Magazine",
+                  description: "Read articles and stay updated with the latest news",
+                  icon: <Newspaper className="h-5 w-5 mb-2 text-primary" />,
+                },
+              ].map((card) => (
+                <Link
+                  key={card.href}
+                  href={card.href}
+                  className="flex-1 group block"
+                  onMouseEnter={(e) => {
+                    const el = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                    if (el) {
+                      el.style.transform = 'translateY(-12px) scale(1.03)'
+                      el.style.zIndex = '10'
+                      el.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    const el = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
+                    if (el) {
+                      el.style.transform = 'translateY(0) scale(1)'
+                      el.style.zIndex = '1'
+                      el.style.boxShadow = ''
+                    }
                   }}
                 >
-                  <CardHeader className="pb-3">
-                    <Calendar className="h-5 w-5 mb-2 text-primary" />
-                    <CardTitle className="text-lg font-bold text-gray-900">
-                      Events
-                    </CardTitle>
-                    <CardDescription className="text-gray-600 text-xs leading-tight">
-                      Discover upcoming events and join our community
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
+                  <Card
+                    className="h-full bg-white border border-gray-200 text-gray-900 transition-all duration-300 ease-out cursor-pointer relative shadow-sm"
+                    style={{
+                      transform: 'translateY(0) scale(1)',
+                      zIndex: 1,
+                      willChange: 'transform',
+                    }}
+                  >
+                    <CardHeader className="pb-3">
+                      {card.icon}
+                      <CardTitle className="text-lg font-bold text-gray-900">
+                        {card.title}
+                      </CardTitle>
+                      <CardDescription className="text-gray-600 text-xs leading-tight">
+                        {card.description}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              ))}
+            </div>
 
-              {/* Showcase Card */}
-              <Link 
-                href="/showcase" 
-                className="flex-1 group block"
-                onMouseEnter={(e) => {
-                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
-                  if (card) {
-                    card.style.transform = 'translateY(-12px) scale(1.03)'
-                    card.style.zIndex = '10'
-                    card.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
-                  if (card) {
-                    card.style.transform = 'translateY(0) scale(1)'
-                    card.style.zIndex = '1'
-                    card.style.boxShadow = ''
-                  }
-                }}
-              >
-                <Card 
-                  className="h-full bg-white border border-gray-200 text-gray-900 transition-all duration-300 ease-out cursor-pointer relative shadow-sm"
-                  style={{
-                    transform: 'translateY(0) scale(1)',
-                    zIndex: 1,
-                    willChange: 'transform'
-                  }}
-                >
-                  <CardHeader className="pb-3">
-                    <Trophy className="h-5 w-5 mb-2 text-primary" />
-                    <CardTitle className="text-lg font-bold text-gray-900">
-                      Showcase
-                    </CardTitle>
-                    <CardDescription className="text-gray-600 text-xs leading-tight">
-                      Explore our platform and community achievements
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-
-              {/* Teams Card */}
-              <Link 
-                href="/teams" 
-                className="flex-1 group block"
-                onMouseEnter={(e) => {
-                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
-                  if (card) {
-                    card.style.transform = 'translateY(-12px) scale(1.03)'
-                    card.style.zIndex = '10'
-                    card.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
-                  if (card) {
-                    card.style.transform = 'translateY(0) scale(1)'
-                    card.style.zIndex = '1'
-                    card.style.boxShadow = ''
-                  }
-                }}
-              >
-                <Card 
-                  className="h-full bg-white border border-gray-200 text-gray-900 transition-all duration-300 ease-out cursor-pointer relative shadow-sm"
-                  style={{
-                    transform: 'translateY(0) scale(1)',
-                    zIndex: 1,
-                    willChange: 'transform'
-                  }}
-                >
-                  <CardHeader className="pb-3">
-                    <Users className="h-5 w-5 mb-2 text-primary" />
-                    <CardTitle className="text-lg font-bold text-gray-900">
-                      Teams
-                    </CardTitle>
-                    <CardDescription className="text-gray-600 text-xs leading-tight">
-                      Find collaborators and build amazing projects together
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-
-              {/* Magazine Card */}
-              <Link 
-                href="/magazine" 
-                className="flex-1 group block"
-                onMouseEnter={(e) => {
-                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
-                  if (card) {
-                    card.style.transform = 'translateY(-12px) scale(1.03)'
-                    card.style.zIndex = '10'
-                    card.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  const card = e.currentTarget.querySelector('[data-slot="card"]') as HTMLElement
-                  if (card) {
-                    card.style.transform = 'translateY(0) scale(1)'
-                    card.style.zIndex = '1'
-                    card.style.boxShadow = ''
-                  }
-                }}
-              >
-                <Card 
-                  className="h-full bg-white border border-gray-200 text-gray-900 transition-all duration-300 ease-out cursor-pointer relative shadow-sm"
-                  style={{
-                    transform: 'translateY(0) scale(1)',
-                    zIndex: 1,
-                    willChange: 'transform'
-                  }}
-                >
-                  <CardHeader className="pb-3">
-                    <Newspaper className="h-5 w-5 mb-2 text-primary" />
-                    <CardTitle className="text-lg font-bold text-gray-900">
-                      Magazine
-                    </CardTitle>
-                    <CardDescription className="text-gray-600 text-xs leading-tight">
-                      Read articles and stay updated with the latest news
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
+            <div className="mt-6">
+              <CryptoTicker />
             </div>
           </div>
         </div>
@@ -481,110 +399,6 @@ export function NewsNewspaperLayout({
 
       {/* Featured Section */}
       <div className="pt-8 pb-12 md:pt-12 md:pb-16">
-        {/* Mobile Featured Layout - Two horizontally scrollable rows, 3 cards each */}
-        <div className="md:hidden mb-4">
-          {(() => {
-            const slots: any[] = [
-              featuredLeft || { __placeholder: true, label: 'TEXT BLOCK', color: 'bg-blue-500' },
-              featuredMain || { __placeholder: true, label: 'MAIN IMAGE', color: 'bg-red-500' },
-              featuredRight || { __placeholder: true, label: 'RIGHT IMAGE', color: 'bg-red-500' },
-              getSecondaryContent(1) || { __placeholder: true, label: 'SECONDARY 1', color: 'bg-red-500' },
-              getSecondaryContent(2) || { __placeholder: true, label: 'SECONDARY 2', color: 'bg-red-500' },
-              getSecondaryContent(3) || { __placeholder: true, label: 'SECONDARY 3', color: 'bg-red-500' },
-            ]
-            const rows = [slots.slice(0,3), slots.slice(3,6)]
-            return (
-              <>
-                <h2 className="text-xl font-bold text-foreground mb-2 px-1">Featured</h2>
-                {rows.map((row, rIdx) => (
-                  <div key={rIdx} className="flex gap-4 overflow-x-auto no-scrollbar px-1 -mx-1 snap-x py-1">
-                    {row.map((content: any, idx: number) => (
-                      <article 
-                        key={(content!.id || content!.slug || idx)} 
-                        className="min-w-[260px] snap-start bg-card rounded-lg border overflow-hidden transition-all duration-300 ease-out cursor-pointer"
-                        style={{
-                          transform: 'translateY(0) scale(1)',
-                          zIndex: 1,
-                          willChange: 'transform'
-                        }}
-                        onMouseEnter={(e) => {
-                          const cardEl = e.currentTarget;
-                          cardEl.style.transform = 'translateY(-8px) scale(1.02)';
-                          cardEl.style.zIndex = '10';
-                          cardEl.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
-                        }}
-                        onMouseLeave={(e) => {
-                          const cardEl = e.currentTarget;
-                          cardEl.style.transform = 'translateY(0) scale(1)';
-                          cardEl.style.zIndex = '1';
-                          cardEl.style.boxShadow = 'none';
-                        }}
-                      >
-                        <div className="relative h-40">
-                          {content.__placeholder ? (
-                            <div className={`w-full h-full ${content.color} flex items-center justify-center`}>
-                              <span className="text-white font-bold">{content.label}</span>
-                            </div>
-                          ) : (
-                            <Link href={isArticle(content!) ? `/news/${content!.slug}` : `/events/${content!.id}`}>
-                              <div className="relative h-full group">
-                                {(isArticle(content!) ? content!.featured_image_url : content!.banner_image) ? (
-                                  <Image
-                                    src={isArticle(content!) ? content!.featured_image_url! : content!.banner_image!}
-                                    alt={content!.title}
-                                    fill
-                                    priority={rIdx === 0 && idx === 0}
-                                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                                    <span className="text-2xl font-bold text-foreground">
-                                      {content!.title?.charAt ? content!.title.charAt(0) : '•'}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </Link>
-                          )}
-                        </div>
-                        <div className="p-3">
-                          {content.__placeholder ? (
-                            <div className="h-4" />
-                          ) : (
-                            <>
-                              <Link href={isArticle(content!) ? `/news/${content!.slug}` : `/events/${content!.id}`}>
-                                <h3 className="font-semibold text-foreground hover:text-primary transition-colors line-clamp-2 mb-2 text-sm">
-                                  {content!.title}
-                                </h3>
-                              </Link>
-                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                <span>
-                                  {isArticle(content!) 
-                                    ? new Date(content!.published_at || content!.created_at).toLocaleDateString()
-                                    : new Date(content!.event_date).toLocaleDateString()
-                                  }
-                                </span>
-                                <span>•</span>
-                                <span>
-                                  {isArticle(content!) 
-                                    ? content!.category?.name 
-                                    : content!.event_type
-                                  }
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                ))}
-              </>
-            )
-          })()}
-        </div>
-
         {/* Tablet/Desktop Featured Layout - Card Carousel */}
         <div className="hidden md:block">
           {/* Collect all featured content for carousel */}

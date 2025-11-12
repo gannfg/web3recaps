@@ -47,8 +47,9 @@ export function useApi<T = any>(options: UseApiOptions = {}) {
         }
 
         const response = await fetch(url, {
-          headers,
           ...requestOptions,
+          headers,
+          credentials: requestOptions.credentials ?? 'include',
         })
 
         let result: ApiResponse<T>

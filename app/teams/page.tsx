@@ -1,9 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { OptimizedTeamsList } from "@/components/teams/optimized-teams-list"
+import { TeamListSection } from "@/components/teams/team-list"
 import { TeamCreateForm } from "@/components/teams/team-create-form"
-import { PerformanceMonitor } from "@/components/performance/performance-monitor"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Plus } from "lucide-react"
@@ -45,13 +44,7 @@ export default function TeamsPage() {
         </Dialog>
       </div>
 
-      {/* Optimized Teams List with Performance Improvements */}
-      <OptimizedTeamsList refreshTrigger={refreshTrigger} />
-
-      {/* Performance Monitor (Development Only) */}
-      {process.env.NODE_ENV === 'development' && (
-        <PerformanceMonitor showDetails={true} />
-      )}
+      <TeamListSection key={refreshTrigger} />
     </div>
   )
 }

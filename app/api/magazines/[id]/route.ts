@@ -104,15 +104,42 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createSupabaseServer()
+    const auth = await requireUser(request)
+    if (!auth.supabase || !auth.user) {
+      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 })
+    }
+    const userId = auth.user.id
+    const supabase = auth.supabase
     if (!supabase) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
     }
     
-    // Check if user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Check if user has proper role
+    const { data: userRole } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single()
+
+    if (!userRole || !['Admin', 'Builder', 'ADMIN', 'BUILDER', 'Author', 'AUTHOR'].includes(userRole.role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    }
+
+    // Get the magazine to check ownership (optional - admins/builders can delete any magazine)
+    const { data: magazine } = await supabase
+      .from('magazines')
+      .select('id, created_by')
+      .eq('id', params.id)
+      .single()
+
+    if (!magazine) {
+      return NextResponse.json({ error: 'Magazine not found' }, { status: 404 })
+    }
+
+    // If user is not admin/builder, check if they created the magazine
+    const isAdminOrBuilder = ['Admin', 'Builder', 'ADMIN', 'BUILDER'].includes(userRole.role)
+    if (!isAdminOrBuilder && magazine.created_by !== userId) {
+      return NextResponse.json({ error: 'Unauthorized to delete this magazine' }, { status: 403 })
     }
 
     // Delete magazine (pages will be deleted automatically due to CASCADE)
@@ -126,7 +153,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Failed to delete magazine' }, { status: 500 })
     }
 
-    return NextResponse.json({ message: 'Magazine deleted successfully' })
+    return NextResponse.json({ success: true, message: 'Magazine deleted successfully' })
   } catch (error) {
     console.error('Error in DELETE /api/magazines/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -183,9 +183,17 @@ export async function POST(request: NextRequest) {
     // Upload to Supabase Storage
     console.log("Attempting upload to bucket:", bucket, "with fileName:", fileName)
     
-    // For event images, avatars, and post media, use admin client to bypass RLS policies if needed
+    // For event images, avatars, team assets, post media, and magazine images, use admin client to bypass RLS if needed
     let uploadClient = supabase
-    if (bucket === 'event-images' || bucket === 'avatars' || bucket === 'post-images' || bucket === 'post-videos') {
+    if (
+      bucket === 'event-images' ||
+      bucket === 'avatars' ||
+      bucket === 'team-avatars' ||
+      bucket === 'team-banners' ||
+      bucket === 'post-images' ||
+      bucket === 'post-videos' ||
+      bucket === 'magazine-images'
+    ) {
       const adminClient = createSupabaseAdmin()
       if (adminClient) {
         uploadClient = adminClient

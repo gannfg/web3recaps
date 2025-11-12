@@ -53,15 +53,86 @@ export interface XTweetsResponse {
   }
 }
 
+export interface XRateLimitInfo {
+  limit?: number
+  remaining?: number
+  reset?: number // unix seconds
+  resetMs?: number // unix ms
+  resetDate?: string // ISO string
+}
+
 /**
  * Fetch recent tweets from X API v2
  */
+export interface FetchTweetsOptions {
+  excludeReplies?: boolean
+  excludeRetweets?: boolean
+}
+
+/**
+ * v2 Recent Search by username (avoids user-id lookup)
+ */
+export async function searchRecentTweetsByUsername(
+  bearerToken: string,
+  username: string,
+  maxResults: number = 10,
+  options: FetchTweetsOptions = {}
+): Promise<XTweetsResponse & { rateLimit?: XRateLimitInfo }> {
+  const url = new URL('https://api.twitter.com/2/tweets/search/recent')
+
+  // Build query: from:username with optional excludes
+  const excludes: string[] = []
+  if (options.excludeReplies) excludes.push('-is:reply')
+  if (options.excludeRetweets) excludes.push('-is:retweet')
+  const query = ['from:' + username, ...excludes].join(' ')
+
+  const params: Record<string, string> = {
+    'query': query,
+    'tweet.fields': 'id,text,created_at,attachments,entities,referenced_tweets',
+    'expansions': 'attachments.media_keys,author_id',
+    'media.fields': 'type,url,preview_image_url',
+    'user.fields': 'id,username,name,profile_image_url,description',
+    'max_results': String(Math.min(Math.max(maxResults || 10, 10), 100)),
+  }
+
+  Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v))
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${bearerToken}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`X Search API error: ${response.status} - ${errorText}`)
+  }
+
+  const json = await response.json()
+
+  const limit = Number(response.headers.get('x-rate-limit-limit') || '')
+  const remaining = Number(response.headers.get('x-rate-limit-remaining') || '')
+  const reset = Number(response.headers.get('x-rate-limit-reset') || '')
+  const rateLimit: XRateLimitInfo = {
+    limit: Number.isFinite(limit) ? limit : undefined,
+    remaining: Number.isFinite(remaining) ? remaining : undefined,
+    reset: Number.isFinite(reset) ? reset : undefined,
+    resetMs: Number.isFinite(reset) ? reset * 1000 : undefined,
+    resetDate: Number.isFinite(reset) ? new Date(reset * 1000).toISOString() : undefined,
+  }
+
+  return { ...json, rateLimit }
+}
+
 export async function fetchRecentTweets(
   bearerToken: string,
   userId: string,
   sinceId?: string,
-  maxResults: number = 10
-): Promise<XTweetsResponse> {
+  maxResults: number = 10,
+  options: FetchTweetsOptions = {}
+): Promise<XTweetsResponse & { rateLimit?: XRateLimitInfo }> {
   const url = new URL('https://api.twitter.com/2/users/' + userId + '/tweets')
   
   const params: Record<string, string> = {
@@ -74,6 +145,20 @@ export async function fetchRecentTweets(
 
   if (sinceId) {
     params.since_id = sinceId
+  }
+
+  const exclude: string[] = []
+
+  if (options.excludeReplies) {
+    exclude.push('replies')
+  }
+
+  if (options.excludeRetweets) {
+    exclude.push('retweets')
+  }
+
+  if (exclude.length > 0) {
+    params.exclude = exclude.join(',')
   }
 
   Object.entries(params).forEach(([key, value]) => {
@@ -93,7 +178,20 @@ export async function fetchRecentTweets(
     throw new Error(`X API error: ${response.status} - ${errorText}`)
   }
 
-  return await response.json()
+  const json = await response.json()
+
+  const limit = Number(response.headers.get('x-rate-limit-limit') || '')
+  const remaining = Number(response.headers.get('x-rate-limit-remaining') || '')
+  const reset = Number(response.headers.get('x-rate-limit-reset') || '')
+  const rateLimit: XRateLimitInfo = {
+    limit: Number.isFinite(limit) ? limit : undefined,
+    remaining: Number.isFinite(remaining) ? remaining : undefined,
+    reset: Number.isFinite(reset) ? reset : undefined,
+    resetMs: Number.isFinite(reset) ? reset * 1000 : undefined,
+    resetDate: Number.isFinite(reset) ? new Date(reset * 1000).toISOString() : undefined,
+  }
+
+  return { ...json, rateLimit }
 }
 
 /**

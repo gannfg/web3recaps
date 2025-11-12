@@ -26,8 +26,27 @@ import {
   AlignRight,
   AlignJustify,
   Undo,
-  Redo
+  Redo,
+  AlertCircle
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 interface SimpleRichTextEditorProps {
   initialValue?: string;
@@ -48,6 +67,10 @@ export function SimpleRichTextEditor({
 }: SimpleRichTextEditorProps) {
   const [value, setValue] = useState(initialValue);
   const [history, setHistory] = useState<string[]>([initialValue]);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState<string>("");
   const [historyIndex, setHistoryIndex] = useState(0);
   const { execute } = useApi();
 
@@ -234,6 +257,7 @@ export function SimpleRichTextEditor({
   const canRedo = historyIndex < history.length - 1;
 
   return (
+    <>
     <Card className={className}>
       <CardContent className="p-0">
         <div className="border rounded-lg overflow-hidden">
@@ -388,11 +412,13 @@ export function SimpleRichTextEditor({
                       if (result.success && result.data) {
                         insertText(`![${file.name}](${result.data.publicUrl})`);
                       } else {
-                        alert('Failed to upload image: ' + (result.error || 'Unknown error'));
+                        setErrorMessage(result.error || 'Unknown error occurred');
+                        setErrorDialogOpen(true);
                       }
                     } catch (error) {
                       console.error('Upload error:', error);
-                      alert('Failed to upload image. Please try again.');
+                      setErrorMessage('Failed to upload image. Please try again.');
+                      setErrorDialogOpen(true);
                     }
                   };
                   input.click();
@@ -443,11 +469,13 @@ export function SimpleRichTextEditor({
                         </div>`;
                         insertText(videoHtml);
                       } else {
-                        alert('Failed to upload video: ' + (result.error || 'Unknown error'));
+                        setErrorMessage(result.error || 'Unknown error occurred');
+                        setErrorDialogOpen(true);
                       }
                     } catch (error) {
                       console.error('Upload error:', error);
-                      alert('Failed to upload video. Please try again.');
+                      setErrorMessage('Failed to upload video. Please try again.');
+                      setErrorDialogOpen(true);
                     }
                   };
                   input.click();
@@ -460,24 +488,8 @@ export function SimpleRichTextEditor({
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  const url = prompt('Enter YouTube URL:');
-                  if (url) {
-                    // Extract video ID from YouTube URL
-                    const videoId = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
-                    if (videoId) {
-                      const youtubeHtml = `<div style="margin: 1rem 0; position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-                        <iframe 
-                          src="https://www.youtube.com/embed/${videoId}" 
-                          style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
-                          allowfullscreen
-                          title="YouTube Video"
-                        ></iframe>
-                      </div>`;
-                      insertText(youtubeHtml);
-                    } else {
-                      alert('Please enter a valid YouTube URL');
-                    }
-                  }
+                  setYoutubeUrl("");
+                  setYoutubeDialogOpen(true);
                 }}
                 title="Insert YouTube"
               >
@@ -509,5 +521,109 @@ export function SimpleRichTextEditor({
         </div>
       </CardContent>
     </Card>
+
+    {/* Error Dialog */}
+    <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+      <AlertDialogContent className="sm:max-w-md">
+        <AlertDialogHeader className="text-left">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 shadow-lg">
+              <AlertCircle className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <AlertDialogTitle className="text-xl font-semibold leading-tight">
+                Upload failed
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm leading-relaxed text-muted-foreground">
+                {errorMessage || 'An unexpected error occurred. Please try again.'}
+              </AlertDialogDescription>
+            </div>
+          </div>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="sm:justify-end gap-2 pt-4">
+          <AlertDialogAction 
+            onClick={() => setErrorDialogOpen(false)}
+            className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white shadow-sm"
+          >
+            Close
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* YouTube URL Dialog */}
+    <Dialog open={youtubeDialogOpen} onOpenChange={setYoutubeDialogOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Insert YouTube Video</DialogTitle>
+          <DialogDescription>
+            Enter a YouTube video URL to embed it in your article.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <Input
+            placeholder="https://www.youtube.com/watch?v=..."
+            value={youtubeUrl}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const videoId = youtubeUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+                if (videoId) {
+                  const youtubeHtml = `<div style="margin: 1rem 0; position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+                    <iframe 
+                      src="https://www.youtube.com/embed/${videoId}" 
+                      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+                      allowfullscreen
+                      title="YouTube Video"
+                    ></iframe>
+                  </div>`;
+                  insertText(youtubeHtml);
+                  setYoutubeDialogOpen(false);
+                  setYoutubeUrl("");
+                } else {
+                  setErrorMessage('Please enter a valid YouTube URL');
+                  setErrorDialogOpen(true);
+                }
+              }
+            }}
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setYoutubeDialogOpen(false);
+              setYoutubeUrl("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              const videoId = youtubeUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+              if (videoId) {
+                const youtubeHtml = `<div style="margin: 1rem 0; position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+                  <iframe 
+                    src="https://www.youtube.com/embed/${videoId}" 
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
+                    allowfullscreen
+                    title="YouTube Video"
+                  ></iframe>
+                </div>`;
+                insertText(youtubeHtml);
+                setYoutubeDialogOpen(false);
+                setYoutubeUrl("");
+              } else {
+                setErrorMessage('Please enter a valid YouTube URL');
+                setErrorDialogOpen(true);
+              }
+            }}
+          >
+            Insert
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }

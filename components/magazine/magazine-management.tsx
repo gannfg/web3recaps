@@ -190,17 +190,28 @@ export function MagazineManagement() {
     try {
       const response = await fetch(`/api/magazines/${magazineId}`, {
         method: 'DELETE',
+        credentials: 'include',
       })
+
+      const data = await response.json()
 
       if (response.ok) {
         toast.success('Magazine deleted successfully!')
         fetchMagazines()
       } else {
-        toast.error('Failed to delete magazine')
+        const errorMessage = data.error || 'Failed to delete magazine'
+        console.error('Delete error:', errorMessage)
+        if (response.status === 401) {
+          toast.error('Please log in to delete magazines')
+        } else if (response.status === 403) {
+          toast.error('You do not have permission to delete this magazine')
+        } else {
+          toast.error(errorMessage)
+        }
       }
     } catch (error) {
       console.error('Error deleting magazine:', error)
-      toast.error('Error deleting magazine')
+      toast.error('Error deleting magazine. Please try again.')
     }
   }
 

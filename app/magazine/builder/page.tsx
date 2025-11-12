@@ -152,14 +152,24 @@ export default function MagazineBuilder() {
 
   const handleBulkUpload = async () => {
     if (bulkFiles.length === 0) return
+    if (!user) {
+      toast.error('Please sign in to upload pages')
+      return
+    }
+    if (!magazineId) {
+      toast.error('Magazine ID is missing')
+      return
+    }
     
     setUploading(true)
-    try {
       const uploadedPages: MagazinePage[] = []
+    const failedUploads: { file: string; error: string }[] = []
       
+    try {
       for (let i = 0; i < bulkFiles.length; i++) {
         const bulkFile = bulkFiles[i]
         
+        try {
         // Upload image
         const formData = new FormData()
         formData.append('file', bulkFile.file)
@@ -168,7 +178,7 @@ export default function MagazineBuilder() {
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
           headers: {
-            'x-user-id': user?.id || '',
+              'x-user-id': user.id,
           },
           body: formData,
         })
@@ -176,37 +186,35 @@ export default function MagazineBuilder() {
         const uploadData = await uploadResponse.json()
         
         if (!uploadResponse.ok || !uploadData.success) {
-          throw new Error(uploadData.error || 'Upload failed')
+            throw new Error(uploadData.error || `Upload failed for "${bulkFile.file.name}"`)
         }
 
-        // Find the next available page number
+          // Calculate page number and sort order based on existing pages and current batch
         const existingPageNumbers = pages.map(p => p.page_number).sort((a, b) => a - b)
-        let nextPageNumber = 1
-        while (existingPageNumbers.includes(nextPageNumber)) {
-          nextPageNumber++
-        }
-        
-        // Find the next available sort order
         const existingSortOrders = pages.map(p => p.sort_order).sort((a, b) => a - b)
-        let nextSortOrder = 1
-        while (existingSortOrders.includes(nextSortOrder)) {
-          nextSortOrder++
-        }
+          
+          // Find the maximum existing values
+          const maxPageNumber = existingPageNumbers.length > 0 ? Math.max(...existingPageNumbers) : 0
+          const maxSortOrder = existingSortOrders.length > 0 ? Math.max(...existingSortOrders) : 0
+          
+          // Calculate for this page (starting from max + 1 + index in batch)
+          const pageNumber = maxPageNumber + i + 1
+          const sortOrder = maxSortOrder + i + 1
 
         // Create page
         const pageData = {
-          page_number: nextPageNumber + i, // Increment for multiple pages
+            page_number: pageNumber,
           page_title: bulkFile.pageTitle,
           image_url: uploadData.data.publicUrl,
           page_type: bulkFile.pageType,
-          sort_order: nextSortOrder + i // Increment for multiple pages
+            sort_order: sortOrder
         }
 
         const pageResponse = await fetch(`/api/magazines/${magazineId}/pages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-user-id': user?.id || '',
+              'x-user-id': user.id,
           },
           body: JSON.stringify(pageData),
         })
@@ -214,20 +222,43 @@ export default function MagazineBuilder() {
         const pageResult = await pageResponse.json()
         
         if (!pageResponse.ok || !pageResult.success) {
-          throw new Error(pageResult.error || 'Failed to create page')
+            throw new Error(pageResult.error || `Failed to create page for "${bulkFile.file.name}"`)
         }
 
         uploadedPages.push(pageResult.data.page)
+        } catch (error) {
+          console.error(`Error uploading file ${i + 1}:`, error)
+          failedUploads.push({
+            file: bulkFile.file.name || `File ${i + 1}`,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          })
+        }
       }
 
+      // Update pages only if we have successful uploads
+      if (uploadedPages.length > 0) {
       setPages(prev => [...prev, ...uploadedPages])
+        toast.success(`Successfully uploaded ${uploadedPages.length} of ${bulkFiles.length} page(s)!`)
+      } else {
+        toast.error('Failed to upload any pages. Please check your files and try again.')
+      }
+
+      // Show errors for failed uploads
+      if (failedUploads.length > 0) {
+        const errorMessage = failedUploads.map(f => `${f.file}: ${f.error}`).join('\n')
+        console.error('Failed uploads:', errorMessage)
+        toast.error(`${failedUploads.length} file(s) failed to upload. Check console for details.`)
+      }
+
+      // Clear bulk files only if all uploads succeeded
+      if (failedUploads.length === 0) {
       setBulkFiles([])
       setIsBulkUploadOpen(false)
-      toast.success(`Successfully uploaded ${uploadedPages.length} pages!`)
+      }
       
     } catch (error) {
       console.error('Bulk upload error:', error)
-      toast.error('Failed to upload pages')
+      toast.error(error instanceof Error ? error.message : 'Failed to upload pages')
     } finally {
       setUploading(false)
     }
@@ -323,95 +354,95 @@ export default function MagazineBuilder() {
   }
 
   const deletePage = async (pageId: string) => {
-    if (!confirm('Are you sure you want to delete this page?')) return
+    if (!magazineId || !user) {
+      toast.error('Missing magazine ID or user authentication')
+      return
+    }
+
+    if (!confirm('Are you sure you want to delete this page? This action cannot be undone.')) return
 
     try {
       const result = await execute(`/api/magazines/${magazineId}/pages/${pageId}`, {
         method: 'DELETE',
         headers: {
-          'x-user-id': user?.id || '',
+          'x-user-id': user.id,
         },
       })
 
       if (result.success) {
         setPages(prev => prev.filter(page => page.id !== pageId))
         toast.success('Page deleted successfully')
+        
+        // Refresh to get updated page numbers
+        await fetchMagazine()
       } else {
-        toast.error('Failed to delete page')
+        toast.error(result.error || 'Failed to delete page')
       }
     } catch (error) {
       console.error('Error deleting page:', error)
-      toast.error('Error deleting page')
+      toast.error(error instanceof Error ? error.message : 'Error deleting page')
     }
   }
 
   const savePageOrder = async () => {
+    if (!magazineId || !user) {
+      toast.error('Missing magazine ID or user authentication')
+      return
+    }
+
+    if (pages.length === 0) {
+      toast.error('No pages to save')
+      return
+    }
+
     setSaving(true)
     try {
       console.log('Current pages state before saving:', pages)
       
-      // Step 1: Set all pages to temporary high values in parallel
-      console.log('Step 1: Setting all pages to temporary values...')
-      const tempUpdates = pages.map((page, i) => ({
-        page,
-        tempValue: 10000 + i
+      // Update pages sequentially to avoid conflicts, but batch the operations
+      const updates = pages.map((page, index) => ({
+        id: page.id,
+        page_number: index + 1,
+        sort_order: index + 1
       }))
       
-      await Promise.all(tempUpdates.map(async ({ page, tempValue }) => {
-        const result = await execute(`/api/magazines/${magazineId}/pages/${page.id}`, {
+      // Update all pages in parallel - the database should handle this correctly
+      // with proper transaction handling
+      const updatePromises = updates.map(async ({ id, page_number, sort_order }) => {
+        const result = await execute(`/api/magazines/${magazineId}/pages/${id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'x-user-id': user?.id || '',
+            'x-user-id': user.id,
           },
           body: JSON.stringify({
-            page_number: tempValue,
-            sort_order: tempValue
+            page_number,
+            sort_order
           }),
         })
         
         if (!result.success) {
-          throw new Error(`Failed to set temporary values for page ${page.id}: ${result.error}`)
+          throw new Error(`Failed to update page ${id}: ${result.error || 'Unknown error'}`)
         }
         
-        console.log(`Set temporary values for page ${page.id}: page_number=${tempValue}, sort_order=${tempValue}`)
-      }))
+        return result
+      })
       
-      // Step 2: Set all pages to final values in parallel
-      console.log('Step 2: Setting all pages to final values...')
-      const finalUpdates = pages.map((page, i) => ({
-        page,
-        newPageNumber: i + 1,
-        newSortOrder: i + 1
-      }))
+      const results = await Promise.all(updatePromises)
       
-      await Promise.all(finalUpdates.map(async ({ page, newPageNumber, newSortOrder }) => {
-        const result = await execute(`/api/magazines/${magazineId}/pages/${page.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': user?.id || '',
-          },
-          body: JSON.stringify({
-            page_number: newPageNumber,
-            sort_order: newSortOrder
-          }),
-        })
-        
-        console.log(`Set final values for page ${page.id}: page_number=${newPageNumber}, sort_order=${newSortOrder}`, result)
-        
-        if (!result.success) {
-          throw new Error(`Failed to set final values for page ${page.id}: ${result.error}`)
+      // Verify all updates succeeded
+      const failedUpdates = results.filter(r => !r.success)
+      if (failedUpdates.length > 0) {
+        throw new Error(`Failed to update ${failedUpdates.length} page(s)`)
         }
-      }))
 
       toast.success('Page order saved successfully!')
       
-      // Refresh the magazine data to get the updated order
+      // Refresh the magazine data to get the updated order from the server
       await fetchMagazine()
     } catch (error) {
       console.error('Error saving page order:', error)
-      toast.error('Failed to save page order')
+      toast.error(error instanceof Error ? error.message : 'Failed to save page order. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -423,10 +454,10 @@ export default function MagazineBuilder() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="h-12 w-12 text-white mx-auto mb-4 animate-spin" />
-          <p className="text-lg text-white">Loading magazine builder...</p>
+          <RefreshCw className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+          <p className="text-lg text-muted-foreground">Loading magazine builder...</p>
         </div>
       </div>
     )
@@ -434,10 +465,10 @@ export default function MagazineBuilder() {
 
   if (!magazine) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-lg text-white">Magazine not found</p>
+          <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-semibold mb-2">Magazine not found</p>
           <Button onClick={() => router.push('/news/manage')} className="mt-4">
             Back to Management
           </Button>
@@ -447,9 +478,9 @@ export default function MagazineBuilder() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-black border-b border-gray-800 sticky top-0 z-10">
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-12 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
@@ -462,11 +493,11 @@ export default function MagazineBuilder() {
                 <span>Back</span>
               </Button>
               
-              <div className="h-6 w-px bg-gray-600" />
+              <div className="h-6 w-px bg-border" />
               
               <div>
-                <h1 className="text-xl font-semibold text-white">{magazine.title}</h1>
-                <p className="text-sm text-gray-400">Issue #{magazine.issue_number}</p>
+                <h1 className="text-xl font-semibold">{magazine.title}</h1>
+                <p className="text-sm text-muted-foreground">Issue #{magazine.issue_number}</p>
               </div>
             </div>
 
@@ -482,6 +513,7 @@ export default function MagazineBuilder() {
               <Button
                 onClick={savePageOrder}
                 disabled={saving}
+                variant="outline"
                 className="flex items-center space-x-2"
               >
                 <Save className="h-4 w-4" />
@@ -505,55 +537,55 @@ export default function MagazineBuilder() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-black border-gray-800">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
-                <FileText className="h-8 w-8 text-white" />
+                <FileText className="h-8 w-8 text-muted-foreground" />
                 <div>
-                  <p className="text-2xl font-bold text-white">{pages.length}</p>
-                  <p className="text-sm text-gray-400">Total Pages</p>
+                  <p className="text-2xl font-bold">{pages.length}</p>
+                  <p className="text-sm text-muted-foreground">Total Pages</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-black border-gray-800">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
-                <ImageIcon className="h-8 w-8 text-white" />
+                <ImageIcon className="h-8 w-8 text-muted-foreground" />
                 <div>
-                  <p className="text-2xl font-bold text-white">
+                  <p className="text-2xl font-bold">
                     {pages.filter(p => p.page_type === 'content').length}
                   </p>
-                  <p className="text-sm text-gray-400">Content Pages</p>
+                  <p className="text-sm text-muted-foreground">Content Pages</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-black border-gray-800">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
-                <BookOpen className="h-8 w-8 text-white" />
+                <BookOpen className="h-8 w-8 text-muted-foreground" />
                 <div>
-                  <p className="text-2xl font-bold text-white">
+                  <p className="text-2xl font-bold">
                     {pages.filter(p => p.page_type === 'cover').length}
                   </p>
-                  <p className="text-sm text-gray-400">Covers</p>
+                  <p className="text-sm text-muted-foreground">Covers</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-black border-gray-800">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
-                <Calendar className="h-8 w-8 text-white" />
+                <Calendar className="h-8 w-8 text-muted-foreground" />
                 <div>
-                  <p className="text-2xl font-bold text-white">
+                  <p className="text-2xl font-bold">
                     {new Date(magazine.issue_date).toLocaleDateString()}
                   </p>
-                  <p className="text-sm text-gray-400">Issue Date</p>
+                  <p className="text-sm text-muted-foreground">Issue Date</p>
                 </div>
               </div>
             </CardContent>
@@ -561,30 +593,30 @@ export default function MagazineBuilder() {
         </div>
 
         {/* Pages Grid */}
-        <Card className="bg-black border-gray-800">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-white">Magazine Pages</CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardTitle>Magazine Pages</CardTitle>
+                <CardDescription>
                   Drag and drop to reorder pages. Click to edit page titles.
                 </CardDescription>
               </div>
               
               <div className="flex items-center space-x-2">
-                <Badge variant="outline" className="text-sm text-white border-gray-600">
+                <Badge variant="outline">
                   {pages.length} pages
                 </Badge>
               </div>
             </div>
           </CardHeader>
           
-          <CardContent className="bg-black">
+          <CardContent>
             {pages.length === 0 ? (
               <div className="text-center py-12">
-                <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-white mb-2">No pages yet</h3>
-                <p className="text-gray-400 mb-4">Upload images to start building your magazine</p>
+                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No pages yet</h3>
+                <p className="text-muted-foreground mb-4">Upload images to start building your magazine</p>
                 <Button onClick={() => setIsBulkUploadOpen(true)}>
                   <Upload className="h-4 w-4 mr-2" />
                   Upload Pages
@@ -613,17 +645,17 @@ export default function MagazineBuilder() {
 
       {/* Bulk Upload Dialog */}
       <Dialog open={isBulkUploadOpen} onOpenChange={setIsBulkUploadOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-black border-gray-800">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white">Bulk Upload Pages</DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogTitle>Bulk Upload Pages</DialogTitle>
+            <DialogDescription>
               Upload multiple images and configure them as magazine pages
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
             {/* File Input */}
-            <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+            <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -633,11 +665,11 @@ export default function MagazineBuilder() {
                 className="hidden"
               />
               
-              <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-white mb-2">
+              <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">
                 Upload Magazine Pages
               </h3>
-              <p className="text-gray-400 mb-4">
+              <p className="text-muted-foreground mb-4">
                 Select multiple images to upload as magazine pages
               </p>
               <Button onClick={() => fileInputRef.current?.click()}>
@@ -649,7 +681,7 @@ export default function MagazineBuilder() {
             {/* Files Preview */}
             {bulkFiles.length > 0 && (
               <div className="space-y-4">
-                <h4 className="text-lg font-medium text-white">Configure Pages ({bulkFiles.length})</h4>
+                <h4 className="text-lg font-medium">Configure Pages ({bulkFiles.length})</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {bulkFiles.map((file, index) => (
                     <BulkFileCard
@@ -716,21 +748,13 @@ function PageCard({ page, index, onDragStart, onDragOver, onDrop, onUpdateTitle,
     setIsEditing(false)
   }
 
-  const getPageTypeColor = (type: string) => {
-    switch (type) {
-      case 'cover': return 'bg-white text-black'
-      case 'back_cover': return 'bg-gray-800 text-white'
-      default: return 'bg-gray-700 text-white'
-    }
-  }
-
   return (
     <div
       draggable
       onDragStart={() => onDragStart(page, index)}
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, index)}
-      className="group relative bg-black rounded-lg border border-gray-800 overflow-hidden hover:shadow-lg transition-all duration-200 cursor-move"
+      className="group relative bg-card rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-200 cursor-move"
     >
       <div className="aspect-[3/4] relative">
         <img
@@ -741,21 +765,21 @@ function PageCard({ page, index, onDragStart, onDragOver, onDrop, onUpdateTitle,
         
         {/* Drag Handle */}
         <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="bg-black/90 backdrop-blur-sm rounded p-1">
-            <GripVertical className="h-4 w-4 text-white" />
+          <div className="bg-background/90 backdrop-blur-sm rounded p-1 border">
+            <GripVertical className="h-4 w-4" />
           </div>
         </div>
         
         {/* Page Number */}
         <div className="absolute top-2 right-2">
-          <Badge className="bg-black/80 text-white border-0">
+          <Badge variant="secondary">
             {index + 1}
           </Badge>
         </div>
         
         {/* Page Type */}
         <div className="absolute bottom-2 left-2">
-          <Badge className={getPageTypeColor(page.page_type)}>
+          <Badge variant="outline" className="bg-background/90">
             {page.page_type}
           </Badge>
         </div>
@@ -783,7 +807,7 @@ function PageCard({ page, index, onDragStart, onDragOver, onDrop, onUpdateTitle,
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Page title"
-              className="text-sm bg-black border-gray-600 text-white"
+                className="text-sm"
               autoFocus
             />
             <div className="flex space-x-1">
@@ -797,7 +821,7 @@ function PageCard({ page, index, onDragStart, onDragOver, onDrop, onUpdateTitle,
                   setTitle(page.page_title || '')
                   setIsEditing(false)
                 }}
-                className="flex-1 border-gray-600 text-white hover:bg-gray-800"
+                  className="flex-1"
               >
                 Cancel
               </Button>
@@ -805,7 +829,7 @@ function PageCard({ page, index, onDragStart, onDragOver, onDrop, onUpdateTitle,
           </div>
         ) : (
           <div 
-            className="text-sm font-medium text-white cursor-pointer hover:text-gray-300 transition-colors"
+              className="text-sm font-medium cursor-pointer hover:text-primary transition-colors"
             onClick={() => setIsEditing(true)}
           >
             {page.page_title || `Page ${index + 1}`}
@@ -818,13 +842,13 @@ function PageCard({ page, index, onDragStart, onDragOver, onDrop, onUpdateTitle,
             value={page.page_type}
             onValueChange={(value: 'cover' | 'content' | 'back_cover') => onUpdateType(page.id, value)}
           >
-            <SelectTrigger className="bg-black border-gray-600 text-white h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-black border-gray-600">
-              <SelectItem value="cover" className="text-white">Cover</SelectItem>
-              <SelectItem value="content" className="text-white">Content</SelectItem>
-              <SelectItem value="back_cover" className="text-white">Back Cover</SelectItem>
+            <SelectContent>
+              <SelectItem value="cover">Cover</SelectItem>
+              <SelectItem value="content">Content</SelectItem>
+              <SelectItem value="back_cover">Back Cover</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -843,7 +867,7 @@ interface BulkFileCardProps {
 
 function BulkFileCard({ file, index, onUpdate, onRemove }: BulkFileCardProps) {
   return (
-    <Card className="bg-black border-gray-800">
+    <Card>
       <CardContent className="p-4">
         <div className="flex space-x-4">
           <div className="flex-shrink-0">
@@ -856,31 +880,31 @@ function BulkFileCard({ file, index, onUpdate, onRemove }: BulkFileCardProps) {
           
           <div className="flex-1 space-y-3">
             <div>
-              <Label htmlFor={`title-${index}`} className="text-white">Page Title</Label>
+              <Label htmlFor={`title-${index}`}>Page Title</Label>
               <Input
                 id={`title-${index}`}
                 value={file.pageTitle}
                 onChange={(e) => onUpdate({ pageTitle: e.target.value })}
                 placeholder="Enter page title"
-                className="text-sm bg-black border-gray-600 text-white"
+                className="text-sm"
               />
             </div>
             
             <div>
-              <Label htmlFor={`type-${index}`} className="text-white">Page Type</Label>
+              <Label htmlFor={`type-${index}`}>Page Type</Label>
               <Select
                 value={file.pageType}
                 onValueChange={(value: 'cover' | 'content' | 'back_cover') => 
                   onUpdate({ pageType: value })
                 }
               >
-                <SelectTrigger className="bg-black border-gray-600 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-black border-gray-600">
-                  <SelectItem value="cover" className="text-white">Cover</SelectItem>
-                  <SelectItem value="content" className="text-white">Content</SelectItem>
-                  <SelectItem value="back_cover" className="text-white">Back Cover</SelectItem>
+                <SelectContent>
+                  <SelectItem value="cover">Cover</SelectItem>
+                  <SelectItem value="content">Content</SelectItem>
+                  <SelectItem value="back_cover">Back Cover</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -889,7 +913,7 @@ function BulkFileCard({ file, index, onUpdate, onRemove }: BulkFileCardProps) {
               size="sm"
               variant="outline"
               onClick={onRemove}
-              className="w-full border-gray-600 text-white hover:bg-gray-800"
+              className="w-full"
             >
               <X className="h-4 w-4 mr-2" />
               Remove

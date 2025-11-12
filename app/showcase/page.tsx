@@ -12,12 +12,14 @@ import { useSession } from "@/store/useSession"
 import { 
   Search, Star, Eye, Heart, Users, ExternalLink, Play, Github, 
   Sparkles, Code, Gamepad2, Coins, Palette, Building2, Crown,
-  MapPin, Calendar, TrendingUp, Zap, RefreshCw
+  MapPin, Calendar, TrendingUp, Zap, RefreshCw, Plus
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { formatRelativeTime } from "@/lib/utils"
 import type { Project, Team } from "@/lib/types"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { ProjectCreateForm } from "@/components/projects/project-create-form"
 
 const PROJECT_TYPE_ICONS = {
   web_app: Code,
@@ -52,6 +54,10 @@ export default function ShowcasePage() {
     recruiting: 0,
     active: 0
   })
+  const [showCreateProject, setShowCreateProject] = useState(false)
+  const [isLoadingMyTeams, setIsLoadingMyTeams] = useState(false)
+  const [myTeams, setMyTeams] = useState<Team[]>([])
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
 
   useEffect(() => {
     loadData()
@@ -77,6 +83,30 @@ export default function ShowcasePage() {
       console.error('Failed to load data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const openCreateProject = async () => {
+    if (!user) {
+      // If not logged in, redirect to login
+      window.location.href = "/login"
+      return
+    }
+    setShowCreateProject(true)
+    if (myTeams.length === 0 && !isLoadingMyTeams) {
+      setIsLoadingMyTeams(true)
+      try {
+        const result = await execute(`/api/teams?member=${user.id}`, {
+          headers: { "x-user-id": user.id }
+        })
+        if (result.success && result.data) {
+          setMyTeams(result.data)
+        }
+      } catch (e) {
+        console.error("Failed to load user's teams:", e)
+      } finally {
+        setIsLoadingMyTeams(false)
+      }
     }
   }
 
@@ -315,16 +345,102 @@ export default function ShowcasePage() {
             Discover amazing projects and talented teams building the future of Web3
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadData}
-          disabled={loading}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadData}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          {user && (
+            <Button size="sm" onClick={openCreateProject}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Project
+            </Button>
+          )}
+        </div>
       </div>
+
+      <Dialog
+        open={showCreateProject}
+        onOpenChange={(open) => {
+          setShowCreateProject(open)
+          if (!open) setSelectedTeam(null)
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {selectedTeam ? (
+            <ProjectCreateForm
+              team={selectedTeam}
+              onProjectCreated={() => {
+                setShowCreateProject(false)
+                setSelectedTeam(null)
+                // Refresh list to include the newly created project
+                loadData()
+              }}
+              onCancel={() => {
+                setSelectedTeam(null)
+              }}
+            />
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Select a Team for your Project</h3>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/teams?create=true">Create New Team</Link>
+                </Button>
+              </div>
+              {isLoadingMyTeams ? (
+                <div className="space-y-2">
+                  <div className="h-4 bg-muted rounded w-1/3 animate-pulse" />
+                  <div className="h-4 bg-muted rounded w-full animate-pulse" />
+                  <div className="h-4 bg-muted rounded w-5/6 animate-pulse" />
+                </div>
+              ) : myTeams.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-10">
+                    <p className="text-muted-foreground mb-4">
+                      You’re not part of any teams yet. Create a team to start a project.
+                    </p>
+                    <Button asChild>
+                      <Link href="/teams?create=true">Create Team</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-3">
+                  {myTeams.map((t) => (
+                    <Card key={t.id} className="hover:shadow transition-shadow">
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={t.avatarUrl} />
+                            <AvatarFallback>{t.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{t.name}</div>
+                            {t.description && (
+                              <div className="text-xs text-muted-foreground line-clamp-1">
+                                {t.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <Button size="sm" onClick={() => setSelectedTeam(t)}>
+                          Use this team
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Toggle Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

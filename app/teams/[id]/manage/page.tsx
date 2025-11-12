@@ -497,6 +497,10 @@ export default function TeamManagePage() {
   }
 
   const handleAvatarUpload = (file: File) => {
+    // Revoke previous preview URL to avoid leaks and stale blob fetches
+    if (avatarPreview) {
+      try { URL.revokeObjectURL(avatarPreview) } catch {}
+    }
     setAvatarFile(file)
     const previewUrl = URL.createObjectURL(file)
     setAvatarPreview(previewUrl)
@@ -504,8 +508,20 @@ export default function TeamManagePage() {
 
   const handleRemoveAvatar = () => {
     setAvatarFile(null)
+    if (avatarPreview) {
+      try { URL.revokeObjectURL(avatarPreview) } catch {}
+    }
     setAvatarPreview("")
   }
+
+  // Cleanup preview URL on unmount or when it changes
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        try { URL.revokeObjectURL(avatarPreview) } catch {}
+      }
+    }
+  }, [avatarPreview])
 
   const addSkill = (skill: string) => {
     if (skill.trim() && !settingsForm.skills.includes(skill.trim())) {

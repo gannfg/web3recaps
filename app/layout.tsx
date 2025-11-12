@@ -10,6 +10,7 @@ import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav"
 import { WalletContextProvider } from "@/components/wallet/wallet-context-provider"
 import { SessionProvider } from "@/components/providers/session-provider"
 import { MagazineBarWrapper } from "@/components/news/magazine-bar-wrapper"
+import { ThemeProvider } from "@/components/theme-provider"
 
 export const metadata: Metadata = {
   title: {
@@ -51,32 +52,34 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="light overflow-x-hidden">
+    <html lang="en" suppressHydrationWarning>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} overflow-x-hidden`}>
-        <WalletContextProvider>
-          <SessionProvider>
-            <Suspense fallback={null}>
-              <HeaderNav />
-            </Suspense>
-            
-            {/* Magazine banner temporarily disabled - magazine not ready yet */}
-            {/* <Suspense fallback={null}>
-              <MagazineBarWrapper />
-            </Suspense> */}
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={true} disableTransitionOnChange>
+          <WalletContextProvider>
+            <SessionProvider>
+              <Suspense fallback={null}>
+                <HeaderNav />
+              </Suspense>
+              
+              {/* Magazine banner temporarily disabled - magazine not ready yet */}
+              {/* <Suspense fallback={null}>
+                <MagazineBarWrapper />
+              </Suspense> */}
 
-            <main className="min-h-screen bg-background pb-16 md:pb-0 relative pt-12">
-              <div className="container mx-auto px-4 py-2 max-w-full overflow-x-hidden static">
-                {children}
-              </div>
-            </main>
+              <main className="min-h-screen bg-background pb-16 md:pb-0 relative pt-12">
+                <div className="container mx-auto px-4 py-2 max-w-full overflow-x-hidden static">
+                  {children}
+                </div>
+              </main>
 
-            <Suspense fallback={null}>
-              <MobileBottomNav />
-            </Suspense>
+              <Suspense fallback={null}>
+                <MobileBottomNav />
+              </Suspense>
 
-            {process.env.NODE_ENV === 'production' && <Analytics />}
-          </SessionProvider>
-        </WalletContextProvider>
+              {process.env.NODE_ENV === 'production' && <Analytics />}
+            </SessionProvider>
+          </WalletContextProvider>
+        </ThemeProvider>
         {process.env.NODE_ENV === 'development' && (
           <script
             dangerouslySetInnerHTML={{

@@ -13,6 +13,8 @@ import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import type { ApiResponse, Post, User } from '@/lib/types'
 
+// formatRelativeTime import removed as X/Twitter section was deleted
+
 export default function FeedPage() {
   const { execute } = useApi()
   const { user } = useSession()

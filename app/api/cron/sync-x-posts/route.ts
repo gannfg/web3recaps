@@ -7,6 +7,7 @@ import {
   extractMediaFromTweet,
   extractUrlsFromTweet,
   cleanTweetText,
+  searchRecentTweetsByUsername,
   type XUser,
 } from '@/lib/x-api/client'
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const bearerToken = process.env.X_BEARER_TOKEN
     const xUserId = process.env.X_USER_ID
-    const xUsername = process.env.X_USERNAME || 'Web3Recapio'
+    const xUsername = (process.env.X_USERNAME || 'web3recapio') as string
 
     // Allow specifying limit via query param (default 10)
     const { searchParams } = new URL(request.url)
@@ -95,13 +96,44 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .single()
 
-    // Fetch recent tweets from X API
-    const tweetsResponse = await fetchRecentTweets(
-      bearerToken,
-      userId,
-      undefined, // sinceId - could use lastPost to only fetch new ones
-      maxResults
-    )
+    // Fetch recent tweets from X API with fallback and rate-limit handling
+    let tweetsResponse
+    try {
+      tweetsResponse = await fetchRecentTweets(
+        bearerToken,
+        userId,
+        undefined, // sinceId - could use lastPost to only fetch new ones
+        maxResults,
+        {
+          excludeReplies: true,
+        }
+      )
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err)
+      // Fallback to v2 recent search if rate-limited or timeline fails
+      if (msg.includes(' 429 ') || /Too Many Requests/i.test(msg) || /X API error/i.test(msg)) {
+        try {
+          tweetsResponse = await searchRecentTweetsByUsername(
+            bearerToken,
+            userProfile?.username || xUsername,
+            Math.min(maxResults, 10),
+            { excludeReplies: true, excludeRetweets: false }
+          )
+        } catch (fallbackErr) {
+          return NextResponse.json({
+            success: true,
+            message: 'Rate-limited by X API; will try again later',
+            synced: 0,
+            skipped: 0,
+            total: 0,
+            requested: maxResults,
+            meta: { rateLimited: true }
+          })
+        }
+      } else {
+        throw err
+      }
+    }
 
     const profileFromTweets = tweetsResponse.includes?.users?.find((u) => u.id === userId)
     if (profileFromTweets) {
@@ -229,9 +261,7 @@ function buildProfileFields(profile?: XUser, existingLinks?: Record<string, any>
     updates.bio = profile.description
   }
 
-  if (profile.profile_image_url) {
-    updates.avatar_url = normalizeProfileImageUrl(profile.profile_image_url)
-  }
+  updates.avatar_url = getDefaultAvatarUrl()
 
   if (profile.username) {
     updates.social_links = {
@@ -241,11 +271,6 @@ function buildProfileFields(profile?: XUser, existingLinks?: Record<string, any>
   }
 
   return updates
-}
-
-function normalizeProfileImageUrl(url: string) {
-  if (!url) return url
-  return url.replace('_normal', '_400x400')
 }
 
 async function updateXUserProfile(
@@ -281,6 +306,10 @@ async function updateXUserProfile(
   }
 }
 
+function getDefaultAvatarUrl() {
+  return '/logo.png'
+}
+
 /**
  * Get or create a system user for X posts
  */
@@ -312,7 +341,7 @@ async function getOrCreateXUser(supabase: any, profile?: XUser): Promise<string 
         display_name: profileFields.display_name ?? 'Web3Recap',
         role: 'ADMIN',
         bio: profileFields.bio ?? 'Official Web3Recap X account',
-        avatar_url: profileFields.avatar_url ?? null,
+        avatar_url: profileFields.avatar_url ?? getDefaultAvatarUrl(),
         social_links: profileFields.social_links ?? {
           twitter: 'https://x.com/Web3Recapio',
         },

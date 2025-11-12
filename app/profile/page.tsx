@@ -15,9 +15,11 @@ import { KycStatusCard } from "@/components/profile/kyc-status-card"
 import { KycUploadForm } from "@/components/profile/kyc-upload-form"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, Crown, Calendar, MapPin, ExternalLink, UserPlus, Check, X, FileText, Calendar as CalendarIcon, UserCheck, Award, Clock, Shield } from "lucide-react"
+import { Users, Crown, Calendar, MapPin, ExternalLink, UserPlus, Check, X, FileText, Calendar as CalendarIcon, UserCheck, Award, Clock, Shield, Plus } from "lucide-react"
 import Link from "next/link"
 import type { Team, TeamMember, TeamInvitation } from "@/lib/types"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { ProjectCreateForm } from "@/components/projects/project-create-form"
 
 export default function ProfilePage() {
   const { user, setUser } = useSession()
@@ -31,6 +33,8 @@ export default function ProfilePage() {
   const [userTeams, setUserTeams] = useState<(Team & { memberInfo: TeamMember })[]>([])
   const [invitations, setInvitations] = useState<TeamInvitation[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCreateProject, setShowCreateProject] = useState(false)
+  const [selectedTeamForProject, setSelectedTeamForProject] = useState<Team | null>(null)
 
   useEffect(() => {
     fetchUserProfile()
@@ -344,6 +348,30 @@ export default function ProfilePage() {
                 </Button>
               </div>
 
+              <Dialog
+                open={showCreateProject}
+                onOpenChange={(open) => {
+                  setShowCreateProject(open)
+                  if (!open) setSelectedTeamForProject(null)
+                }}
+              >
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  {selectedTeamForProject && (
+                    <ProjectCreateForm
+                      team={selectedTeamForProject}
+                      onProjectCreated={() => {
+                        setShowCreateProject(false)
+                        setSelectedTeamForProject(null)
+                      }}
+                      onCancel={() => {
+                        setShowCreateProject(false)
+                        setSelectedTeamForProject(null)
+                      }}
+                    />
+                  )}
+                </DialogContent>
+              </Dialog>
+
               {userTeams.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-12">
@@ -407,12 +435,26 @@ export default function ProfilePage() {
                                 </Link>
                               </Button>
                               {isLeader && (
-                                <Button size="sm" asChild className="flex-1 sm:flex-none">
-                                  <Link href={`/teams/${team.id}/manage`}>
-                                    <span className="hidden sm:inline">Manage</span>
-                                    <span className="sm:hidden">Manage</span>
-                                  </Link>
-                                </Button>
+                                <>
+                                  <Button size="sm" asChild className="flex-1 sm:flex-none">
+                                    <Link href={`/teams/${team.id}/manage`}>
+                                      <span className="hidden sm:inline">Manage</span>
+                                      <span className="sm:hidden">Manage</span>
+                                    </Link>
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="flex-1 sm:flex-none"
+                                    onClick={() => {
+                                      setSelectedTeamForProject(team)
+                                      setShowCreateProject(true)
+                                    }}
+                                  >
+                                    <Plus className="h-4 w-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">New Project</span>
+                                    <span className="sm:hidden">New</span>
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </div>
