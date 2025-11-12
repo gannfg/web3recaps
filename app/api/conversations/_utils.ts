@@ -105,7 +105,14 @@ export async function getAuthedClient(request: NextRequest) {
 }
 
 export function mapConversation(record: ConversationRecord, currentUserId: string) {
-  const participants = record.participants ?? []
+  // Normalize potential array-wrapped relations from Supabase
+  // Some PostgREST joins may return arrays when using filters/order in nested selects.
+  const normalizedTeam: any = Array.isArray((record as any).team) ? (record as any).team[0] : (record as any).team
+  const normalizedProject: any = Array.isArray((record as any).project) ? (record as any).project[0] : (record as any).project
+  const participants = (record.participants ?? []).map((p: any) => ({
+    ...p,
+    user: Array.isArray(p.user) ? p.user[0] : p.user
+  }))
   const lastMessage = record.messages?.[0] ?? null
   const currentParticipant = participants.find((p) => p.user_id === currentUserId)
 
@@ -117,19 +124,19 @@ export function mapConversation(record: ConversationRecord, currentUserId: strin
     createdBy: record.created_by,
     createdAt: record.created_at,
     updatedAt: record.updated_at,
-    team: record.team
+    team: normalizedTeam
       ? {
-          id: record.team.id,
-          name: record.team.name,
-          avatarUrl: record.team.avatar_url
+          id: normalizedTeam.id,
+          name: normalizedTeam.name,
+          avatarUrl: normalizedTeam.avatar_url
         }
       : null,
-    project: record.project
+    project: normalizedProject
       ? {
-          id: record.project.id,
-          name: record.project.name,
-          logoImage: record.project.logo_image,
-          bannerImage: record.project.banner_image
+          id: normalizedProject.id,
+          name: normalizedProject.name,
+          logoImage: normalizedProject.logo_image,
+          bannerImage: normalizedProject.banner_image
         }
       : null,
     participants: participants.map((participant) => ({
@@ -180,7 +187,8 @@ export async function fetchConversation(
     return { conversation: null, error }
   }
 
-  return { conversation: mapConversation(data as ConversationRecord, currentUserId), error: null }
+  // Cast via unknown to bypass PostgREST select string parser typing issues
+  return { conversation: mapConversation(data as unknown as ConversationRecord, currentUserId), error: null }
 }
 
 export async function ensureParticipants(
