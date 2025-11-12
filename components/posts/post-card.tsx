@@ -9,7 +9,7 @@ import { ImageViewer } from "@/components/feed/image-viewer"
 import { CommentModal } from "./comment-modal"
 import { useSession } from "@/store/useSession"
 import { useApi } from "@/hooks/use-api"
-import { formatRelativeTime } from "@/lib/utils"
+import { formatRelativeTime, resolveStorageUrl } from "@/lib/utils"
 import { Heart, MessageCircle, MoreHorizontal, Trash2, LogIn, AlertCircle, Share2, Copy, UserRound, Globe, Twitter, Linkedin, Github, Mail, ExternalLink } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import {
@@ -438,6 +438,9 @@ export const PostCard = memo(function PostCard({ post, author, onLike, onComment
     setProfileDialogOpen(true)
   }
 
+  const avatarSrc = resolveStorageUrl(author?.avatarUrl)
+  const bannerSrc = resolveStorageUrl(author?.bannerUrl)
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -449,7 +452,7 @@ export const PostCard = memo(function PostCard({ post, author, onLike, onComment
               className="rounded-full focus:outline-none focus-visible:ring focus-visible:ring-primary/50 transition-shadow"
             >
               <Avatar className="h-10 w-10">
-                <AvatarImage src={author?.avatarUrl || "/placeholder.svg"} />
+                <AvatarImage src={avatarSrc || "/placeholder.svg"} />
                 <AvatarFallback>{author?.displayName?.charAt(0) || "U"}</AvatarFallback>
               </Avatar>
             </button>
@@ -656,10 +659,10 @@ export const PostCard = memo(function PostCard({ post, author, onLike, onComment
       <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
         <DialogContent className="sm:max-w-lg overflow-hidden">
           <div className="relative -mx-6 -mt-6 h-32">
-            {author?.bannerUrl ? (
+            {bannerSrc ? (
               <div
                 className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${author.bannerUrl})` }}
+                style={{ backgroundImage: `url(${bannerSrc})` }}
               />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 dark:from-primary/30 dark:via-primary/20 dark:to-primary/30" />
@@ -670,7 +673,7 @@ export const PostCard = memo(function PostCard({ post, author, onLike, onComment
           <DialogHeader className="text-left space-y-3 -mt-12">
             <div className="flex items-start gap-4">
               <Avatar className="h-20 w-20 border-4 border-background shadow-lg">
-                <AvatarImage src={author?.avatarUrl || "/placeholder.svg"} />
+                <AvatarImage src={avatarSrc || "/placeholder.svg"} />
                 <AvatarFallback>{author?.displayName?.charAt(0) || "U"}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0 space-y-1 pt-6">

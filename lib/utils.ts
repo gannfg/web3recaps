@@ -72,3 +72,28 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, "")
 }
 
+function isAbsoluteUrl(path: string) {
+  return /^https?:\/\//i.test(path) || path.startsWith("data:")
+}
+
+/**
+ * Convert a Supabase storage path (e.g. "avatars/user/image.png") into a public URL.
+ * Returns the original value if it is already an absolute URL or if required env vars are missing.
+ */
+export function resolveStorageUrl(path?: string | null): string {
+  if (!path) return ""
+  if (isAbsoluteUrl(path)) return path
+
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!baseUrl) return path
+
+  const cleanedBase = baseUrl.replace(/\/+$/, "")
+  const cleanedPath = path.replace(/^\/+/, "")
+
+  if (cleanedPath.startsWith("storage/v1/object/public")) {
+    return `${cleanedBase}/${cleanedPath}`
+  }
+
+  return `${cleanedBase}/storage/v1/object/public/${cleanedPath}`
+}
+
