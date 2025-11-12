@@ -4,6 +4,17 @@ import { getAuthedClient } from "../../_utils"
 const MAX_PAGE_SIZE = 100
 const DEFAULT_PAGE_SIZE = 40
 
+function mapSender(sender: any) {
+  const s = Array.isArray(sender) ? sender[0] : sender
+  if (!s) return null
+  return {
+    id: s.id,
+    displayName: s.display_name,
+    avatarUrl: s.avatar_url,
+    email: s.email
+  }
+}
+
 const MESSAGE_SELECT = `
   id,
   conversation_id,
@@ -88,14 +99,7 @@ export async function GET(
         createdAt: message.created_at,
         editedAt: message.edited_at,
         deletedAt: message.deleted_at,
-        sender: message.sender
-          ? {
-              id: message.sender.id,
-              displayName: message.sender.display_name,
-              avatarUrl: message.sender.avatar_url,
-              email: message.sender.email
-            }
-          : null
+        sender: mapSender(message.sender)
       })) ?? []
 
     return NextResponse.json({ success: true, data: messages })
@@ -187,14 +191,7 @@ export async function POST(
       createdAt: insertedMessage.created_at,
       editedAt: insertedMessage.edited_at,
       deletedAt: insertedMessage.deleted_at,
-      sender: insertedMessage.sender
-        ? {
-            id: insertedMessage.sender.id,
-            displayName: insertedMessage.sender.display_name,
-            avatarUrl: insertedMessage.sender.avatar_url,
-            email: insertedMessage.sender.email
-          }
-        : null
+      sender: mapSender(insertedMessage.sender)
     }
 
     return NextResponse.json({ success: true, data: message })
